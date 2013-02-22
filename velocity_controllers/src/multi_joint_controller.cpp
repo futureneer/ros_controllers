@@ -48,38 +48,45 @@ MultiJointController::~MultiJointController()
   sub_command_.shutdown();
 }
 
-bool MultiJointController::init(hardware_interface::VelocityJointInterface *robot, const std::string &joint_name)
-{
-  joint_ = robot->getJointHandle(joint_name);
+// bool MultiJointController::init(hardware_interface::VelocityJointInterface *robot, const std::string &joint_name)
+// {
+//   // // get all joint states from the hardware interface
+//   // joint_names_ = robot->getJointNames();
+//   // for (unsigned i=0; i<joint_names.size(); i++)
+//   //   ROS_DEBUG("Got joint %s", joint_names[i].c_str());
 
-  // Load URDF for robot
-  urdf::Model urdf;
-  if (!urdf.initParam("robot_description")){
-    ROS_ERROR("Failed to parse urdf file");
-    return false;
-  }
+//   // // Load URDF for robot
+//   // urdf::Model urdf;
+//   // if (!urdf.initParam("robot_description")){
+//   //   ROS_ERROR("Failed to parse urdf file");
+//   //   return false;
+//   // }
   
-  // Get URDF for joint
-  joint_urdf_ = urdf.getJoint(joint_name);
-  if (!joint_urdf_){
-    ROS_ERROR("Could not find joint %s in urdf", joint_name.c_str());
-    return false;
-  }
+//   // // Get URDF for joints
+//   // for (unsigned i=0; i<joint_names.size(); i++){
+//   //   joint_urdf_.push_back( urdf.getJoint(joint_names[i]) );
+//   //   if(!joint_urdf_[i]){
+//   //     ROS_ERROR("Could not find joint %s in urdf", joint_names[i].c_str());
+//   //     return false;
+//   //   }
+//   // }
 
-  return true;
-}
+//   // joint_urdf_ = urdf.getJoint(joint_name);
+//   // if (!joint_urdf_){
+//   //   ROS_ERROR("Could not find joint %s in urdf", joint_name.c_str());
+//   //   return false;
+//   // }
+
+//   return true;
+// }
 
 bool MultiJointController::init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n)
 {
-  std::string joint_name;
-  if (!n.getParam("joint", joint_name))
-  {
-    ROS_ERROR("No joint given (parameter: %s/joint)", n.getNamespace().c_str());
-    return false;
-  }
+  // Get all joint states from the hardware interface
+  joint_names_ = robot->getJointNames();
+  for (unsigned i=0; i<joint_names.size(); i++)
+    ROS_DEBUG("Got joint %s", joint_names[i].c_str());
 
-  joint_ = robot->getJointHandle(joint_name);
-  
   // Load URDF for robot
   urdf::Model urdf;
   if (!urdf.initParam("robot_description")){
@@ -87,17 +94,24 @@ bool MultiJointController::init(hardware_interface::VelocityJointInterface *robo
     return false;
   }
   
-  // Get URDF for joint
-  joint_urdf_ = urdf.getJoint(joint_name);
-  if (!joint_urdf_){
-    ROS_ERROR("Could not find joint %s in urdf", joint_name.c_str());
-    return false;
+  // Get URDF for joints
+  for (unsigned i=0; i<joint_names.size(); i++){
+    joint_urdf_.push_back( urdf.getJoint(joint_names[i]) );
+    if(!joint_urdf_[i]){
+      ROS_ERROR("Could not find joint %s in urdf", joint_names[i].c_str());
+      return false;
+    }
   }
 
-  controller_state_publisher_.reset(
-    new realtime_tools::RealtimePublisher<controllers_msgs::JointControllerState>(n, "state", 1));
+  // Get all joint handles
+  for (unsigned i=0; i<joint_names.size(); i++){
+    joints_.push_back( robot->getJointHandle(joint_names_[i]) );
+  }
   
-  sub_command_ = n.subscribe<std_msgs::Float64>("command", 1, &MultiJointController::commandCB, this);
+  // controller_state_publisher_.reset(
+  //   new realtime_tools::RealtimePublisher<controllers_msgs::JointControllerState>(n, "state", 1));
+  
+  sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &MultiJointController::commandCB, this);
   
   return true;
 }

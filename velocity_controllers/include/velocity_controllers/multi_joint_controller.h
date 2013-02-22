@@ -58,7 +58,7 @@
 #include <urdf/model.h>
 #include <hardware_interface/joint_command_interface.h>
 #include <controller_interface/controller.h>
-#include <std_msgs/Float64.h>
+#include <std_msgs/Float64MultiArray.h>
 // State Publishing   
 #include <controllers_msgs/JointControllerState.h>
 #include <boost/scoped_ptr.hpp>
@@ -76,20 +76,21 @@ public:
   MultiJointController();
   ~MultiJointController();
 
-  bool init(hardware_interface::VelocityJointInterface *robot, const std::string &joint_name);
+  // bool init(hardware_interface::VelocityJointInterface *robot, const std::string &joint_name);
   bool init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n);
 
   void starting(const ros::Time& time) { command_ = 0.0;}
   void update(const ros::Time& time, const ros::Duration& period);
 
-  hardware_interface::JointHandle joint_;
-  boost::shared_ptr<const urdf::Joint> joint_urdf_;
+  const std::vector<std::string>& joint_names;
+  std::vector<hardware_interface::JointHandle> joints_;
+  std::vector< boost::shared_ptr<const urdf::Joint> > joint_urdf_;
   double command_;
 
 private:
   ros::Subscriber sub_command_;
-  void commandCB(const std_msgs::Float64ConstPtr& msg);
-  boost::scoped_ptr<realtime_tools::RealtimePublisher<controllers_msgs::JointControllerState> > controller_state_publisher_ ;
+  void commandCB(const std_msgs::Float64MultiArrayConstPtr& msg);
+  // boost::scoped_ptr<realtime_tools::RealtimePublisher<controllers_msgs::JointControllerState> > controller_state_publisher_ ;
   
 
 };
