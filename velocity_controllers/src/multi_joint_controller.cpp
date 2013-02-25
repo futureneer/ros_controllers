@@ -91,22 +91,29 @@ bool MultiJointController::init(hardware_interface::VelocityJointInterface *robo
 
 void MultiJointController::update(const ros::Time& time, const ros::Duration& period)
 {
-  // double command_vel = 0;
-  // double vel_limit = joint_urdf_.limits->velocity;
 
-  // if(command_ > vel_limit){
-  //   command_vel = vel_limit;
-  //   ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<command_);
-  // }else if(command_ < -vel_limit){
-  //   command_vel = -vel_limit;
-  //   ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<command_);
-  // }else{
-  //   command_vel = command_;
-  // }
+  // Assign velocity to each joint from command
+  for(unsigned int i=0;i<num_joints_;i++){
+    double command_vel = 0;
+    double current_joint_cmd = command_[i];
+    hardware_interface::JointHandle joint = joints_[i];
+    // Get current joint's velocity limits
+    double vel_limit = joint_urdf_[i]->limits->velocity;
+    // Check command velocity agains limits
+    if(current_joint_cmd > vel_limit){
+      command_vel = vel_limit;
+      ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<current_joint_cmd);
+    }else if(current_joint_cmd < -vel_limit){
+      command_vel = -vel_limit;
+      ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<current_joint_cmd);
+    }else{
+      command_vel = current_joint_cmd;
+    }
+    // Set velocity command to current joint
+    joint.setCommand(command_vel);
+  }
 
-  // // Set joint velocity command
-  // joint_.setCommand(command_vel);
-
+  // Old code for publishing joint state
   // // Publish joint state
   // if(controller_state_publisher_ && controller_state_publisher_->trylock())
   // {
