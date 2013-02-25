@@ -80,10 +80,7 @@ bool MultiJointController::init(hardware_interface::VelocityJointInterface *robo
   // Resize commands to be the proper size
   command_.resize(num_joints_);
   
-  // Old code for publishing joint state
-  // controller_state_publisher_.reset(
-  //   new realtime_tools::RealtimePublisher<controllers_msgs::JointControllerState>(n, "state", 1));
-  
+  // Initialize command subscriber
   sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &MultiJointController::commandCB, this);
   
   return true;
@@ -112,21 +109,6 @@ void MultiJointController::update(const ros::Time& time, const ros::Duration& pe
     // Set velocity command to current joint
     joint.setCommand(command_vel);
   }
-
-  // Old code for publishing joint state
-  // // Publish joint state
-  // if(controller_state_publisher_ && controller_state_publisher_->trylock())
-  // {
-  //   controller_state_publisher_->msg_.header.stamp = time;
-  //   controller_state_publisher_->msg_.set_point = command_vel;
-  //   controller_state_publisher_->msg_.process_value = joint_.getPosition();
-  //   controller_state_publisher_->msg_.process_value_dot = joint_.getVelocity();
-  //   controller_state_publisher_->msg_.error = 0;
-  //   controller_state_publisher_->msg_.time_step = period.toSec();
-  //   controller_state_publisher_->msg_.command = 0;
-  //   // Publish State
-  //   controller_state_publisher_->unlockAndPublish();
-  // }
 }
 
 void MultiJointController::commandCB(const std_msgs::Float64MultiArrayConstPtr& msg)
