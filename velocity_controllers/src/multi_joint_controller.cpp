@@ -40,7 +40,6 @@
 namespace velocity_controllers {
 
 MultiJointController::MultiJointController()
-: command_(0)
 {}
 
 MultiJointController::~MultiJointController()
@@ -48,44 +47,14 @@ MultiJointController::~MultiJointController()
   sub_command_.shutdown();
 }
 
-// bool MultiJointController::init(hardware_interface::VelocityJointInterface *robot, const std::string &joint_name)
-// {
-//   // // get all joint states from the hardware interface
-//   // joint_names_ = robot->getJointNames();
-//   // for (unsigned i=0; i<joint_names.size(); i++)
-//   //   ROS_DEBUG("Got joint %s", joint_names[i].c_str());
-
-//   // // Load URDF for robot
-//   // urdf::Model urdf;
-//   // if (!urdf.initParam("robot_description")){
-//   //   ROS_ERROR("Failed to parse urdf file");
-//   //   return false;
-//   // }
-  
-//   // // Get URDF for joints
-//   // for (unsigned i=0; i<joint_names.size(); i++){
-//   //   joint_urdf_.push_back( urdf.getJoint(joint_names[i]) );
-//   //   if(!joint_urdf_[i]){
-//   //     ROS_ERROR("Could not find joint %s in urdf", joint_names[i].c_str());
-//   //     return false;
-//   //   }
-//   // }
-
-//   // joint_urdf_ = urdf.getJoint(joint_name);
-//   // if (!joint_urdf_){
-//   //   ROS_ERROR("Could not find joint %s in urdf", joint_name.c_str());
-//   //   return false;
-//   // }
-
-//   return true;
-// }
-
 bool MultiJointController::init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n)
 {
   // Get all joint states from the hardware interface
   joint_names_ = robot->getJointNames();
-  for (unsigned i=0; i<joint_names.size(); i++)
-    ROS_DEBUG("Got joint %s", joint_names[i].c_str());
+  num_joints_ = joint_names_.size();
+
+  for (unsigned i=0; i<num_joints_; i++)
+    ROS_DEBUG("Got joint %s", joint_names_[i].c_str());
 
   // Load URDF for robot
   urdf::Model urdf;
@@ -95,19 +64,23 @@ bool MultiJointController::init(hardware_interface::VelocityJointInterface *robo
   }
   
   // Get URDF for joints
-  for (unsigned i=0; i<joint_names.size(); i++){
-    joint_urdf_.push_back( urdf.getJoint(joint_names[i]) );
+  for (unsigned i=0; i<num_joints_; i++){
+    joint_urdf_.push_back( urdf.getJoint(joint_names_[i]) );
     if(!joint_urdf_[i]){
-      ROS_ERROR("Could not find joint %s in urdf", joint_names[i].c_str());
+      ROS_ERROR("Could not find joint %s in urdf", joint_names_[i].c_str());
       return false;
     }
   }
 
   // Get all joint handles
-  for (unsigned i=0; i<joint_names.size(); i++){
+  for (unsigned i=0; i<joint_names_.size(); i++){
     joints_.push_back( robot->getJointHandle(joint_names_[i]) );
   }
+
+  // Resize commands to be the proper size
+  command_.resize(num_joints_);
   
+  // Old code for publishing joint state
   // controller_state_publisher_.reset(
   //   new realtime_tools::RealtimePublisher<controllers_msgs::JointControllerState>(n, "state", 1));
   
@@ -118,38 +91,38 @@ bool MultiJointController::init(hardware_interface::VelocityJointInterface *robo
 
 void MultiJointController::update(const ros::Time& time, const ros::Duration& period)
 {
-  double command_vel = 0;
-  double vel_limit = joint_urdf_->limits->velocity;
+  // double command_vel = 0;
+  // double vel_limit = joint_urdf_.limits->velocity;
 
-  if(command_ > vel_limit){
-    command_vel = vel_limit;
-    ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<command_);
-  }else if(command_ < -vel_limit){
-    command_vel = -vel_limit;
-    ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<command_);
-  }else{
-    command_vel = command_;
-  }
+  // if(command_ > vel_limit){
+  //   command_vel = vel_limit;
+  //   ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<command_);
+  // }else if(command_ < -vel_limit){
+  //   command_vel = -vel_limit;
+  //   ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<command_);
+  // }else{
+  //   command_vel = command_;
+  // }
 
-  // Set joint velocity command
-  joint_.setCommand(command_vel);
+  // // Set joint velocity command
+  // joint_.setCommand(command_vel);
 
-  // Publish joint state
-  if(controller_state_publisher_ && controller_state_publisher_->trylock())
-  {
-    controller_state_publisher_->msg_.header.stamp = time;
-    controller_state_publisher_->msg_.set_point = command_vel;
-    controller_state_publisher_->msg_.process_value = joint_.getPosition();
-    controller_state_publisher_->msg_.process_value_dot = joint_.getVelocity();
-    controller_state_publisher_->msg_.error = 0;
-    controller_state_publisher_->msg_.time_step = period.toSec();
-    controller_state_publisher_->msg_.command = 0;
-    // Publish State
-    controller_state_publisher_->unlockAndPublish();
-  }
+  // // Publish joint state
+  // if(controller_state_publisher_ && controller_state_publisher_->trylock())
+  // {
+  //   controller_state_publisher_->msg_.header.stamp = time;
+  //   controller_state_publisher_->msg_.set_point = command_vel;
+  //   controller_state_publisher_->msg_.process_value = joint_.getPosition();
+  //   controller_state_publisher_->msg_.process_value_dot = joint_.getVelocity();
+  //   controller_state_publisher_->msg_.error = 0;
+  //   controller_state_publisher_->msg_.time_step = period.toSec();
+  //   controller_state_publisher_->msg_.command = 0;
+  //   // Publish State
+  //   controller_state_publisher_->unlockAndPublish();
+  // }
 }
 
-void MultiJointController::commandCB(const std_msgs::Float64ConstPtr& msg)
+void MultiJointController::commandCB(const std_msgs::Float64MultiArrayConstPtr& msg)
 {
   command_ = msg->data;
 }

@@ -79,20 +79,18 @@ public:
   // bool init(hardware_interface::VelocityJointInterface *robot, const std::string &joint_name);
   bool init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n);
 
-  void starting(const ros::Time& time) { command_ = 0.0;}
+  void starting(const ros::Time& time){}
   void update(const ros::Time& time, const ros::Duration& period);
 
-  const std::vector<std::string>& joint_names;
+  unsigned int num_joints_;
+  std::vector<std::string> joint_names_;
   std::vector<hardware_interface::JointHandle> joints_;
   std::vector< boost::shared_ptr<const urdf::Joint> > joint_urdf_;
-  double command_;
+  std::vector<double> command_;
 
 private:
   ros::Subscriber sub_command_;
   void commandCB(const std_msgs::Float64MultiArrayConstPtr& msg);
-  // boost::scoped_ptr<realtime_tools::RealtimePublisher<controllers_msgs::JointControllerState> > controller_state_publisher_ ;
-  
-
 };
 
 }
