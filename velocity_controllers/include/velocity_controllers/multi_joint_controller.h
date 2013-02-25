@@ -72,22 +72,17 @@ namespace velocity_controllers
 class MultiJointController: public controller_interface::Controller<hardware_interface::VelocityJointInterface>
 {
 public:
-
   MultiJointController();
   ~MultiJointController();
-
-  // bool init(hardware_interface::VelocityJointInterface *robot, const std::string &joint_name);
   bool init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n);
-
   void starting(const ros::Time& time){}
   void update(const ros::Time& time, const ros::Duration& period);
-
+  // Members
   unsigned int num_joints_;
   std::vector<std::string> joint_names_;
   std::vector<hardware_interface::JointHandle> joints_;
   std::vector< boost::shared_ptr<const urdf::Joint> > joint_urdf_;
   std::vector<double> command_;
-
 private:
   ros::Subscriber sub_command_;
   void commandCB(const std_msgs::Float64MultiArrayConstPtr& msg);

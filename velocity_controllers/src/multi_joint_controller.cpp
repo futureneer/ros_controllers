@@ -52,17 +52,14 @@ bool MultiJointController::init(hardware_interface::VelocityJointInterface *robo
   // Get all joint states from the hardware interface
   joint_names_ = robot->getJointNames();
   num_joints_ = joint_names_.size();
-
   for (unsigned i=0; i<num_joints_; i++)
     ROS_DEBUG("Got joint %s", joint_names_[i].c_str());
-
   // Load URDF for robot
   urdf::Model urdf;
   if (!urdf.initParam("robot_description")){
     ROS_ERROR("Failed to parse urdf file");
     return false;
   }
-  
   // Get URDF for joints
   for (unsigned i=0; i<num_joints_; i++){
     joint_urdf_.push_back( urdf.getJoint(joint_names_[i]) );
@@ -71,24 +68,19 @@ bool MultiJointController::init(hardware_interface::VelocityJointInterface *robo
       return false;
     }
   }
-
   // Get all joint handles
   for (unsigned i=0; i<joint_names_.size(); i++){
     joints_.push_back( robot->getJointHandle(joint_names_[i]) );
   }
-
   // Resize commands to be the proper size
   command_.resize(num_joints_);
-  
   // Initialize command subscriber
   sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &MultiJointController::commandCB, this);
-  
   return true;
 }
 
 void MultiJointController::update(const ros::Time& time, const ros::Duration& period)
 {
-
   // Assign velocity to each joint from command
   for(unsigned int i=0;i<num_joints_;i++){
     double command_vel = 0;
