@@ -16,6 +16,12 @@
     <description>
       The MultiJointVelocityController tracks velocity commands for multiple joints as defined by an URDF file and the robot_definition parameter. Input is a vector of velocities (std_msgs/Float64MultiArray). It commands velocity to each of those joints. It expects a VelocityJointInterface type of hardware interface.
     </description>
+  </class>  
+
+  <class name="velocity_controllers/CartesianPositionController" type="velocity_controllers::CartesianPositionController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      The CartesianPositionController tracks cartesian frame commands for the end effector as defined by an URDF file and the robot_definition parameter. Input is a cartesian pose (geometrt_msgs/Pose). It commands velocity to each of the joints. It expects a VelocityJointInterface type of hardware interface.
+    </description>
   </class>
 
 </library>

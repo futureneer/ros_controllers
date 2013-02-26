@@ -15,6 +15,20 @@
   <depend package="urdf" />
   <depend package="roscpp"/>
   <depend package="rospy"/>
+  <depend package="angles" />
+  <depend package="filters" />
+  <depend package="tf" />
+  <depend package="tf_conversions" />
+  <depend package="kdl" />
+  <depend package="eigen_conversions" />
+  <depend package="pluginlib" />
+  <depend package="actionlib" />
+
+  <depend package="std_msgs" />
+  <depend package="geometry_msgs" />
+  <depend package="diagnostic_msgs" />
+  <depend package="trajectory_msgs" />
+  <depend package="kdl_parser"/>
   
   <export>
     <controller_interface plugin="${prefix}/velocity_controllers_plugins.xml" />
