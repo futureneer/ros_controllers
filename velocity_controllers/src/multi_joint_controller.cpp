@@ -39,15 +39,15 @@
 
 namespace velocity_controllers {
 
-MultiJointController::MultiJointController()
+MultiJointVelocityController::MultiJointVelocityController()
 {}
 
-MultiJointController::~MultiJointController()
+MultiJointVelocityController::~MultiJointVelocityController()
 {
   sub_command_.shutdown();
 }
 
-bool MultiJointController::init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n)
+bool MultiJointVelocityController::init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n)
 {
   // Get all joint states from the hardware interface
   joint_names_ = robot->getJointNames();
@@ -68,6 +68,15 @@ bool MultiJointController::init(hardware_interface::VelocityJointInterface *robo
       return false;
     }
   }
+  // Get Joint Limits
+  for (unsigned i=0; i<num_joints_; i++){
+    // Velocity Limit
+    joint_vel_limits_.push_back(joint_urdf_[i]->limits->velocity);
+    // Upper Position Limit
+    joint_upper_position_limits_.push_back(joint_urdf_[i]->limits->upper);
+    // Lower Position Limit
+    joint_lower_position_limits_.push_back(joint_urdf_[i]->limits->lower);
+  }
   // Get all joint handles
   for (unsigned i=0; i<joint_names_.size(); i++){
     joints_.push_back( robot->getJointHandle(joint_names_[i]) );
@@ -75,11 +84,11 @@ bool MultiJointController::init(hardware_interface::VelocityJointInterface *robo
   // Resize commands to be the proper size
   command_.resize(num_joints_);
   // Initialize command subscriber
-  sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &MultiJointController::commandCB, this);
+  sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &MultiJointVelocityController::commandCB, this);
   return true;
 }
 
-void MultiJointController::update(const ros::Time& time, const ros::Duration& period)
+void MultiJointVelocityController::update(const ros::Time& time, const ros::Duration& period)
 {
   // Assign velocity to each joint from command
   for(unsigned int i=0;i<num_joints_;i++){
@@ -87,7 +96,7 @@ void MultiJointController::update(const ros::Time& time, const ros::Duration& pe
     double current_joint_cmd = command_[i];
     hardware_interface::JointHandle joint = joints_[i];
     // Get current joint's velocity limits
-    double vel_limit = joint_urdf_[i]->limits->velocity;
+    double vel_limit = joint_vel_limits_[i];
     // Check command velocity agains limits
     if(current_joint_cmd > vel_limit){
       command_vel = vel_limit;
@@ -103,12 +112,25 @@ void MultiJointController::update(const ros::Time& time, const ros::Duration& pe
   }
 }
 
-void MultiJointController::commandCB(const std_msgs::Float64MultiArrayConstPtr& msg)
+void MultiJointVelocityController::stopping(const ros::Time& time)
+{
+  ROS_INFO_STREAM("Shutting Down Controller and Commanding Zero Velocity.");
+  // Set all velocities to zero.
+  for(unsigned int i=0;i<num_joints_;i++){
+    double command_vel = 0;
+    hardware_interface::JointHandle joint = joints_[i];
+    joint.setCommand(command_vel);
+  }
+  ROS_INFO_STREAM("Controller Stopped Successfully.");
+  
+}
+
+void MultiJointVelocityController::commandCB(const std_msgs::Float64MultiArrayConstPtr& msg)
 {
   command_ = msg->data;
 }
 
 }// namespace
 
-PLUGINLIB_DECLARE_CLASS(velocity_controllers, MultiJointController, velocity_controllers::MultiJointController, controller_interface::ControllerBase)
+PLUGINLIB_DECLARE_CLASS(velocity_controllers, MultiJointVelocityController, velocity_controllers::MultiJointVelocityController, controller_interface::ControllerBase)
 

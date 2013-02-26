@@ -38,14 +38,14 @@
 #define VELOCITY_CONTROLLERS_MULTI_JOINT_CONTROLLER_H
 
 /**
-   @class velocity_controllers:MultiJointController
+   @class velocity_controllers:MultiJointVelocityController
    @brief Joint Velocity Controller (torque or force)
 
    This class passes the commanded effort down to the joint
 
    @section ROS interface
 
-   @param type Must be "MultiJointController"
+   @param type Must be "MultiJointVelocityController"
    @param joint Name of the joint to control.
 
    Subscribes to:
@@ -69,16 +69,21 @@
 namespace velocity_controllers
 {
 
-class MultiJointController: public controller_interface::Controller<hardware_interface::VelocityJointInterface>
+class MultiJointVelocityController: public controller_interface::Controller<hardware_interface::VelocityJointInterface>
 {
 public:
-  MultiJointController();
-  ~MultiJointController();
+  MultiJointVelocityController();
+  ~MultiJointVelocityController();
   bool init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n);
   void starting(const ros::Time& time){}
   void update(const ros::Time& time, const ros::Duration& period);
+  void stopping(const ros::Time& time);
   // Members
   unsigned int num_joints_;
+  std::vector<double> joint_vel_limits_;
+  std::vector<double> joint_upper_position_limits_;
+  std::vector<double> joint_lower_position_limits_;
+
   std::vector<std::string> joint_names_;
   std::vector<hardware_interface::JointHandle> joints_;
   std::vector< boost::shared_ptr<const urdf::Joint> > joint_urdf_;

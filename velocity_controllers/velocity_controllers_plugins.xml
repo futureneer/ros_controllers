@@ -12,9 +12,9 @@
     </description>
   </class>
   
-  <class name="velocity_controllers/MultiJointController" type="velocity_controllers::MultiJointController" base_class_type="controller_interface::ControllerBase">
+  <class name="velocity_controllers/MultiJointVelocityController" type="velocity_controllers::MultiJointVelocityController" base_class_type="controller_interface::ControllerBase">
     <description>
-      The MultiJointController tracks velocity commands for multiple joints as defined by an URDF file and the robot_definition parameter. Input is a vector of velocities. It commands velocity to each of those joints. It expects a VelocityJointInterface type of hardware interface.
+      The MultiJointVelocityController tracks velocity commands for multiple joints as defined by an URDF file and the robot_definition parameter. Input is a vector of velocities (std_msgs/Float64MultiArray). It commands velocity to each of those joints. It expects a VelocityJointInterface type of hardware interface.
     </description>
   </class>
 
