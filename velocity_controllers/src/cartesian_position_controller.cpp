@@ -37,7 +37,6 @@
 #include <velocity_controllers/cartesian_position_controller.h>
 #include <pluginlib/class_list_macros.h>
 #include <algorithm>
-#include "kdl/chainfksolverpos_recursive.hpp"
 #include "pluginlib/class_list_macros.h"
 #include "tf_conversions/tf_kdl.h"
 
@@ -54,29 +53,60 @@ CartesianPositionController::~CartesianPositionController()
 
 bool CartesianPositionController::init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n)
 {
-  ROS_INFO_STREAM("CartesianPoseController: Starting Up... ");
+  ROS_INFO_STREAM("CartesianPositionController: Starting Up... ");
   // Get Node
   node_ = n;
   // Get ROOT and TIP Parameters
   if (!node_.getParam("root_name", root_name_)){
-    ROS_ERROR("CartesianPoseController: No root name found on parameter server (namespace: %s)",
+    ROS_ERROR("CartesianPositionController: No root name found on parameter server (namespace: %s)",
               node_.getNamespace().c_str());
     return false;
   }
-  ROS_INFO_STREAM("CartesianPoseController: Root link is " << root_name_);
+  ROS_INFO_STREAM("CartesianPositionController: Root link is " << root_name_);
 
   if (!node_.getParam("tip_name", tip_name_)){
-    ROS_ERROR("CartesianPoseController: No tip name found on parameter server (namespace: %s)",
+    ROS_ERROR("CartesianPositionController: No tip name found on parameter server (namespace: %s)",
               node_.getNamespace().c_str());
     return false;
   }
-  ROS_INFO_STREAM("CartesianPoseController: Tip link is " << tip_name_);
+  ROS_INFO_STREAM("CartesianPositionController: Tip link is " << tip_name_);
 
   // Check hardware interface is valid
   assert(robot);
   robot_ = robot;
 
+  // Get the robot description file
+  if (!node_.getParam("/robot_description", robot_desc_string_)){
+    ROS_ERROR("CartesianPositionController: No robot description found on parameter server (namespace: %s)",
+              node_.getNamespace().c_str());
+    return false;
+  }
+  ROS_INFO_STREAM("CartesianPositionController: Robot Description is " << robot_desc_string_);
 
+  // Initialize a KDL Tree
+  if (!kdl_parser::treeFromString(robot_desc_string_, kdl_tree_)){
+    ROS_ERROR("CartesianPositionController: Failed to construct KDL Tree");
+    return false;
+  }
+  // Extract KDL Chain from Tree
+  if(!kdl_tree_.getChain(root_name_,tip_name_,kdl_chain_)){
+    ROS_ERROR("CartesianPositionController: Failed to extract KDL Chain from KDL Tree");
+    return false;
+  }
+
+  // Create Solvers
+  fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
+  ik_vel_solver_.reset(new KDL::ChainIkSolverVel_pinv(kdl_chain_));
+  ik_solver_.reset(new KDL::ChainIkSolverPos_NR(kdl_chain_, *fk_solver_.get(), *ik_vel_solver_.get()));
+  // Initialize Joint Values
+  jnt_pos_.resize(kdl_chain_.getNrOfJoints());
+  jnt_vel_.resize(kdl_chain_.getNrOfJoints());
+
+  // Subscribe to pose commands
+  sub_command_.subscribe(node_, "command", 10);
+  command_filter_.reset(new tf::MessageFilter<geometry_msgs::PoseStamped>(
+                          sub_command_, tf_, root_name_, 10, node_));
+  command_filter_->registerCallback(boost::bind(&CartesianPositionController::command, this, _1));
 
   // // Get all joint states from the hardware interface
   // joint_names_ = robot->getJointNames();
@@ -117,6 +147,17 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
   return true;
 }
 
+void CartesianPositionController::command(const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
+{
+  // convert message to transform
+  tf::Stamped<tf::Pose> pose_stamped;
+  poseStampedMsgToTF(*pose_msg, pose_stamped);
+
+  // convert to reference frame of root link of the controller chain
+  tf_.transformPose(root_name_, pose_stamped, pose_stamped);
+  tf::PoseTFToKDL(pose_stamped, pose_desi_);
+}
+
 void CartesianPositionController::update(const ros::Time& time, const ros::Duration& period)
 {
   // // Assign velocity to each joint from command
@@ -154,10 +195,10 @@ void CartesianPositionController::stopping(const ros::Time& time)
   
 }
 
-void CartesianPositionController::commandCB(const geometry_msgs::PoseStamped::ConstPtr& msg)
-{
-  // command_ = msg->data;
-}
+// void CartesianPositionController::commandCB(const geometry_msgs::PoseStamped::ConstPtr& msg)
+// {
+//   // command_ = msg->data;
+// }
 
 }// namespace
 

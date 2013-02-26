@@ -69,9 +69,14 @@
 // State Publishing   
 #include <realtime_tools/realtime_publisher.h>
 // KDL
+#include <kdl_parser/kdl_parser.hpp>
 #include <kdl/chainfksolver.hpp>
-#include <kdl/chain.hpp>
+#include <kdl/chainiksolver.hpp>
 #include <kdl/chainjnttojacsolver.hpp>
+#include <kdl/chainfksolverpos_recursive.hpp>
+#include <kdl/chainiksolvervel_pinv.hpp>
+#include <kdl/chainiksolverpos_nr.hpp>
+#include <kdl/chain.hpp>
 #include <kdl/frames.hpp>
 // Messaging
 #include <message_filters/subscriber.h>
@@ -96,6 +101,8 @@ public:
   void update(const ros::Time& time, const ros::Duration& period);
   void stopping(const ros::Time& time);  
 
+  void command(const geometry_msgs::PoseStamped::ConstPtr& pose_msg);
+
   // Input to the controller
   KDL::Frame pose_desi_, pose_meas_;
   KDL::Twist twist_ff_;
@@ -104,7 +111,6 @@ public:
 
 private:
   // Member Functions
-  void commandCB(const geometry_msgs::PoseStamped::ConstPtr& msg);
   KDL::Frame getPose();
 
   // Members  
@@ -121,10 +127,15 @@ private:
   std::vector<control_toolbox::Pid> pid_controller_;
 
   // KDL and Kinematics
+  std::string robot_desc_string_;
+  KDL::Tree kdl_tree_;
   KDL::Chain kdl_chain_;
-  boost::scoped_ptr<KDL::ChainFkSolverPos> jnt_to_pose_solver_;
+  boost::scoped_ptr<KDL::ChainIkSolverVel_pinv> ik_vel_solver_;   
+  boost::scoped_ptr<KDL::ChainFkSolverPos> fk_solver_;
   boost::scoped_ptr<KDL::ChainJntToJacSolver> jac_solver_;
+  boost::scoped_ptr<KDL::ChainIkSolverPos_NR> ik_solver_;
   KDL::JntArray jnt_pos_;
+  KDL::JntArray jnt_vel_;
   KDL::JntArray jnt_eff_;
   KDL::Jacobian jacobian_;
 
