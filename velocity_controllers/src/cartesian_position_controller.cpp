@@ -83,6 +83,14 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
   }
   ROS_INFO_STREAM("CartesianPositionController: Robot Description is " << robot_desc_string_);
 
+  // Load URDF for robot
+  urdf::Model urdf;
+  if (!urdf.initParam("/robot_description")){
+    ROS_ERROR("CartesianPositionController: No URDF file found on parameter server (namespace: %s)",
+              node_.getNamespace().c_str());
+    return false;
+  }
+
   // Initialize a KDL Tree
   if (!kdl_parser::treeFromString(robot_desc_string_, kdl_tree_)){
     ROS_ERROR("CartesianPositionController: Failed to construct KDL Tree");
@@ -102,48 +110,45 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
   jnt_pos_.resize(kdl_chain_.getNrOfJoints());
   jnt_vel_.resize(kdl_chain_.getNrOfJoints());
 
+  // Get all joint states from the hardware interface
+  joint_names_ = robot->getJointNames();
+  num_joints_ = joint_names_.size();
+  for (unsigned i=0; i<num_joints_; i++)
+    ROS_DEBUG("Got joint %s", joint_names_[i].c_str());
+
+  // Get URDF for joints
+  for (unsigned i=0; i<num_joints_; i++){
+    joint_urdf_.push_back( urdf.getJoint(joint_names_[i]) );
+    if(!joint_urdf_[i]){
+      ROS_ERROR("Could not find joint %s in urdf", joint_names_[i].c_str());
+      return false;
+    }
+  }
+  // Get Joint Limits
+  for (unsigned i=0; i<num_joints_; i++){
+    // Velocity Limit
+    joint_vel_limits_.push_back(joint_urdf_[i]->limits->velocity);
+    // Upper Position Limit
+    joint_upper_position_limits_.push_back(joint_urdf_[i]->limits->upper);
+    // Lower Position Limit
+    joint_lower_position_limits_.push_back(joint_urdf_[i]->limits->lower);
+  }
+  // Get all joint handles
+  for (unsigned i=0; i<joint_names_.size(); i++){
+    joint_handles_.push_back( robot->getJointHandle(joint_names_[i]) );
+  }
+  // Resize commands to be the proper size
+  // command_.resize(num_joints_);
+  // Initialize command subscriber
+  // sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &CartesianPositionController::commandCB, this);
+
+
   // Subscribe to pose commands
   sub_command_.subscribe(node_, "command", 10);
   command_filter_.reset(new tf::MessageFilter<geometry_msgs::PoseStamped>(
                           sub_command_, tf_, root_name_, 10, node_));
   command_filter_->registerCallback(boost::bind(&CartesianPositionController::command, this, _1));
 
-  // // Get all joint states from the hardware interface
-  // joint_names_ = robot->getJointNames();
-  // num_joints_ = joint_names_.size();
-  // for (unsigned i=0; i<num_joints_; i++)
-  //   ROS_DEBUG("Got joint %s", joint_names_[i].c_str());
-  // // Load URDF for robot
-  // urdf::Model urdf;
-  // if (!urdf.initParam("robot_description")){
-  //   ROS_ERROR("Failed to parse urdf file");
-  //   return false;
-  // }
-  // // Get URDF for joints
-  // for (unsigned i=0; i<num_joints_; i++){
-  //   joint_urdf_.push_back( urdf.getJoint(joint_names_[i]) );
-  //   if(!joint_urdf_[i]){
-  //     ROS_ERROR("Could not find joint %s in urdf", joint_names_[i].c_str());
-  //     return false;
-  //   }
-  // }
-  // // Get Joint Limits
-  // for (unsigned i=0; i<num_joints_; i++){
-  //   // Velocity Limit
-  //   joint_vel_limits_.push_back(joint_urdf_[i]->limits->velocity);
-  //   // Upper Position Limit
-  //   joint_upper_position_limits_.push_back(joint_urdf_[i]->limits->upper);
-  //   // Lower Position Limit
-  //   joint_lower_position_limits_.push_back(joint_urdf_[i]->limits->lower);
-  // }
-  // // Get all joint handles
-  // for (unsigned i=0; i<joint_names_.size(); i++){
-  //   joint_handles_.push_back( robot->getJointHandle(joint_names_[i]) );
-  // }
-  // // Resize commands to be the proper size
-  // command_.resize(num_joints_);
-  // // Initialize command subscriber
-  // // sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &CartesianPositionController::commandCB, this);
   return true;
 }
 
