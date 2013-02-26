@@ -34,8 +34,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef VELOCITY_CONTROLLERS_MULTI_JOINT_CONTROLLER_H
-#define VELOCITY_CONTROLLERS_MULTI_JOINT_CONTROLLER_H
+#ifndef VELOCITY_CONTROLLERS_MULTI_JOINT_VELOCITY_CONTROLLER_H
+#define VELOCITY_CONTROLLERS_MULTI_JOINT_VELOCITY_CONTROLLER_H
 
 /**
    @class velocity_controllers:MultiJointVelocityController

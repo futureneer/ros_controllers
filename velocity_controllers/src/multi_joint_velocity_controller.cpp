@@ -34,7 +34,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include <velocity_controllers/multi_joint_controller.h>
+#include <velocity_controllers/multi_joint_velocity_controller.h>
 #include <pluginlib/class_list_macros.h>
 
 namespace velocity_controllers {
