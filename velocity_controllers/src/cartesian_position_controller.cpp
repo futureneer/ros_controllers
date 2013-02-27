@@ -155,15 +155,6 @@ void CartesianPositionController::starting(const ros::Time& time)
   loop_count_ = 0;
   joint_positions_.resize(num_joints_);
   joint_veolcities_.resize(num_joints_);
-}
-
-KDL::Frame CartesianPositionController::getPose()
-{
-  // Get the joint positions and velocities
-  for (unsigned i=0; i<num_joints_; i++){
-      joint_positions_(i) = joint_handles_[i].getPosition();
-      joint_veolcities_(i) = joint_handles_[i].getVelocity();
-  }
 
   ROS_INFO_STREAM("CartesianPositionController: Initial Position = "
               << joint_positions_(0) <<"  "
@@ -179,6 +170,15 @@ KDL::Frame CartesianPositionController::getPose()
               << joint_veolcities_(3) <<"  "
               << joint_veolcities_(4) <<"  "
               << joint_veolcities_(5)); 
+}
+
+KDL::Frame CartesianPositionController::getPose()
+{
+  // Get the joint positions and velocities
+  for (unsigned i=0; i<num_joints_; i++){
+      joint_positions_(i) = joint_handles_[i].getPosition();
+      joint_veolcities_(i) = joint_handles_[i].getVelocity();
+  }
 
   // get cartesian pose
   KDL::Frame result;
@@ -211,8 +211,15 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
 
   // Calculate the position error
   KDL::JntArray joint_positions_error;
-  KDL::JntArray::Subtract(joint_positions_,joint_positions_desired_,joint_positions_error);
+  KDL::Subtract(joint_positions_,joint_positions_desired_,joint_positions_error);
 
+  ROS_INFO_STREAM("CartesianPositionController: Position Error = "
+              << joint_positions_error(0) <<"  "
+              << joint_positions_error(1) <<"  "
+              << joint_positions_error(2) <<"  "
+              << joint_positions_error(3) <<"  "
+              << joint_positions_error(4) <<"  "
+              << joint_positions_error(5)); 
   // For each joint, calculate the required velocity to move to new position
   // for(unsigned int i=0;i<num_joints_;i++){
     
