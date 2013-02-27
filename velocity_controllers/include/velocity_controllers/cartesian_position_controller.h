@@ -97,7 +97,7 @@ public:
   ~CartesianPositionController();
 
   bool init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n);
-  void starting(const ros::Time& time){}
+  void starting(const ros::Time& time);
   void update(const ros::Time& time, const ros::Duration& period);
   void stopping(const ros::Time& time);  
 

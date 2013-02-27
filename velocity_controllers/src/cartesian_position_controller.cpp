@@ -137,11 +137,6 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
   for (unsigned i=0; i<joint_names_.size(); i++){
     joint_handles_.push_back( robot->getJointHandle(joint_names_[i]) );
   }
-  // Resize commands to be the proper size
-  // command_.resize(num_joints_);
-  // Initialize command subscriber
-  // sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &CartesianPositionController::commandCB, this);
-
 
   // Subscribe to pose commands
   sub_command_.subscribe(node_, "command", 10);
@@ -150,6 +145,47 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
   command_filter_->registerCallback(boost::bind(&CartesianPositionController::command, this, _1));
 
   return true;
+}
+
+
+void CartesianPositionController::starting(const ros::Time& time)
+{
+  twist_ff_ = KDL::Twist::Zero();
+  pose_desi_ = getPose();  
+  last_time_ = ros::Time::now();
+  loop_count_ = 0;
+  jnt_pos_.resize(num_joints_);
+  jnt_vel_.resize(num_joints_);
+}
+
+KDL::Frame CartesianPositionController::getPose()
+{
+  // Get the joint positions and velocities
+  for (unsigned i=0; i<num_joints_; i++){
+      jnt_pos_(i) = joint_handles_[i].getPosition();
+      jnt_vel_(i) = joint_handles_[i].getVelocity();
+  }
+
+  ROS_WARN_STREAM("CartesianPositionController: Initial Position = "
+              << jnt_pos_(0) <<"  "
+              << jnt_pos_(1) <<"  "
+              << jnt_pos_(2) <<"  "
+              << jnt_pos_(3) <<"  "
+              << jnt_pos_(4) <<"  "
+              << jnt_pos_(5)); 
+  ROS_WARN_STREAM("CartesianPositionController: Initial Velocity = "
+              << jnt_vel_(0) <<"  "
+              << jnt_vel_(1) <<"  "
+              << jnt_vel_(2) <<"  "
+              << jnt_vel_(3) <<"  "
+              << jnt_vel_(4) <<"  "
+              << jnt_vel_(5)); 
+
+  // get cartesian pose
+  KDL::Frame result;
+  fk_solver_->JntToCart(jnt_pos_, result);
+
+  return result;
 }
 
 void CartesianPositionController::command(const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
