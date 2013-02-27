@@ -104,7 +104,7 @@ public:
   void command(const geometry_msgs::PoseStamped::ConstPtr& pose_msg);
 
   // Input to the controller
-  KDL::Frame pose_desi_, pose_meas_;
+  KDL::Frame pose_desired_, pose_measured_;
   KDL::Twist twist_ff_;
   // State output
   KDL::Twist twist_error_;
@@ -134,9 +134,10 @@ private:
   boost::scoped_ptr<KDL::ChainFkSolverPos> fk_solver_;
   boost::scoped_ptr<KDL::ChainJntToJacSolver> jac_solver_;
   boost::scoped_ptr<KDL::ChainIkSolverPos_NR> ik_solver_;
-  KDL::JntArray jnt_pos_;
-  KDL::JntArray jnt_vel_;
-  KDL::JntArray jnt_eff_;
+  KDL::JntArray joint_positions_;
+  KDL::JntArray joint_positions_desired_;
+  KDL::JntArray joint_veolcities_;
+  KDL::JntArray joint_veolcities_desired_;
   KDL::Jacobian jacobian_;
 
   // URDF and Joint Information

@@ -107,8 +107,8 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
   ik_vel_solver_.reset(new KDL::ChainIkSolverVel_pinv(kdl_chain_));
   ik_solver_.reset(new KDL::ChainIkSolverPos_NR(kdl_chain_, *fk_solver_.get(), *ik_vel_solver_.get()));
   // Initialize Joint Values
-  jnt_pos_.resize(kdl_chain_.getNrOfJoints());
-  jnt_vel_.resize(kdl_chain_.getNrOfJoints());
+  joint_positions_.resize(kdl_chain_.getNrOfJoints());
+  joint_veolcities_.resize(kdl_chain_.getNrOfJoints());
 
   // Get all joint states from the hardware interface
   joint_names_ = robot->getJointNames();
@@ -150,40 +150,39 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
 
 void CartesianPositionController::starting(const ros::Time& time)
 {
-  twist_ff_ = KDL::Twist::Zero();
-  pose_desi_ = getPose();  
-  last_time_ = ros::Time::now();
+  pose_desired_ = getPose();  
+  last_time_ = time;
   loop_count_ = 0;
-  jnt_pos_.resize(num_joints_);
-  jnt_vel_.resize(num_joints_);
+  joint_positions_.resize(num_joints_);
+  joint_veolcities_.resize(num_joints_);
 }
 
 KDL::Frame CartesianPositionController::getPose()
 {
   // Get the joint positions and velocities
   for (unsigned i=0; i<num_joints_; i++){
-      jnt_pos_(i) = joint_handles_[i].getPosition();
-      jnt_vel_(i) = joint_handles_[i].getVelocity();
+      joint_positions_(i) = joint_handles_[i].getPosition();
+      joint_veolcities_(i) = joint_handles_[i].getVelocity();
   }
 
-  ROS_WARN_STREAM("CartesianPositionController: Initial Position = "
-              << jnt_pos_(0) <<"  "
-              << jnt_pos_(1) <<"  "
-              << jnt_pos_(2) <<"  "
-              << jnt_pos_(3) <<"  "
-              << jnt_pos_(4) <<"  "
-              << jnt_pos_(5)); 
-  ROS_WARN_STREAM("CartesianPositionController: Initial Velocity = "
-              << jnt_vel_(0) <<"  "
-              << jnt_vel_(1) <<"  "
-              << jnt_vel_(2) <<"  "
-              << jnt_vel_(3) <<"  "
-              << jnt_vel_(4) <<"  "
-              << jnt_vel_(5)); 
+  ROS_INFO_STREAM("CartesianPositionController: Initial Position = "
+              << joint_positions_(0) <<"  "
+              << joint_positions_(1) <<"  "
+              << joint_positions_(2) <<"  "
+              << joint_positions_(3) <<"  "
+              << joint_positions_(4) <<"  "
+              << joint_positions_(5)); 
+  ROS_INFO_STREAM("CartesianPositionController: Initial Velocity = "
+              << joint_veolcities_(0) <<"  "
+              << joint_veolcities_(1) <<"  "
+              << joint_veolcities_(2) <<"  "
+              << joint_veolcities_(3) <<"  "
+              << joint_veolcities_(4) <<"  "
+              << joint_veolcities_(5)); 
 
   // get cartesian pose
   KDL::Frame result;
-  fk_solver_->JntToCart(jnt_pos_, result);
+  fk_solver_->JntToCart(joint_positions_, result);
 
   return result;
 }
@@ -196,11 +195,29 @@ void CartesianPositionController::command(const geometry_msgs::PoseStamped::Cons
 
   // convert to reference frame of root link of the controller chain
   tf_.transformPose(root_name_, pose_stamped, pose_stamped);
-  tf::PoseTFToKDL(pose_stamped, pose_desi_);
+  tf::PoseTFToKDL(pose_stamped, pose_desired_);
 }
 
 void CartesianPositionController::update(const ros::Time& time, const ros::Duration& period)
 {
+  // Get time
+  ros::Duration dt = period;
+  last_time_ = time;
+  // Get last pose
+  pose_measured_ = getPose();
+
+  // Calculate desired joint positions from desired cartesian pos
+  ik_solver_->CartToJnt(joint_positions_,pose_desired_,joint_positions_desired_);
+
+  // Calculate the position error
+  KDL::JntArray joint_positions_error;
+  KDL::JntArray::Subtract(joint_positions_,joint_positions_desired_,joint_positions_error);
+
+  // For each joint, calculate the required velocity to move to new position
+  // for(unsigned int i=0;i<num_joints_;i++){
+    
+  // }
+
   // // Assign velocity to each joint from command
   // for(unsigned int i=0;i<num_joints_;i++){
   //   double command_vel = 0;
