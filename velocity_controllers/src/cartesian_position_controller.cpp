@@ -178,6 +178,12 @@ void CartesianPositionController::starting(const ros::Time& time)
   for (unsigned int i=0; i<num_joints_; i++)
     pid_controller_[i].reset();
 
+
+  ROS_INFO_STREAM("CartesianPositionController: Initial Cartesian Position = "
+              << pose_desired_.p.x() <<"  "
+              << pose_desired_.p.y() <<"  "
+              << pose_desired_.p.z());
+
   ROS_INFO_STREAM("CartesianPositionController: Initial Position = "
               << joint_positions_(0) <<"  "
               << joint_positions_(1) <<"  "
@@ -236,30 +242,29 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
 
   // Calculate desired joint positions from desired cartesian pos
   int e = ik_solver_->CartToJnt(joint_positions_,pose_desired_,joint_positions_desired_);
-  // ROS_INFO_STREAM("CartesianPositionController: IK Returned "<<e);
+  // ROS_DEBUG_STREAM("CartesianPositionController: IK Returned "<<e);
 
+  ROS_DEBUG_STREAM("CartesianPositionController: Current Position = "
+              << joint_positions_(0) <<"  "
+              << joint_positions_(1) <<"  "
+              << joint_positions_(2) <<"  "
+              << joint_positions_(3) <<"  "
+              << joint_positions_(4) <<"  "
+              << joint_positions_(5));
 
-  // ROS_INFO_STREAM("CartesianPositionController: Current Position = "
-  //             << joint_positions_(0) <<"  "
-  //             << joint_positions_(1) <<"  "
-  //             << joint_positions_(2) <<"  "
-  //             << joint_positions_(3) <<"  "
-  //             << joint_positions_(4) <<"  "
-  //             << joint_positions_(5));
-
-  // ROS_INFO_STREAM("CartesianPositionController: Desired Joint Position = "
-  //             << joint_positions_desired_(0) <<"  "
-  //             << joint_positions_desired_(1) <<"  "
-  //             << joint_positions_desired_(2) <<"  "
-  //             << joint_positions_desired_(3) <<"  "
-  //             << joint_positions_desired_(4) <<"  "
-  //             << joint_positions_desired_(5));
+  ROS_DEBUG_STREAM("CartesianPositionController: Desired Joint Position = "
+              << joint_positions_desired_(0) <<"  "
+              << joint_positions_desired_(1) <<"  "
+              << joint_positions_desired_(2) <<"  "
+              << joint_positions_desired_(3) <<"  "
+              << joint_positions_desired_(4) <<"  "
+              << joint_positions_desired_(5));
 
   // Calculate the position error
   KDL::JntArray joint_positions_error;
   KDL::Subtract(joint_positions_,joint_positions_desired_,joint_positions_error);
 
-  ROS_INFO_STREAM("CartesianPositionController: Position Error = "
+  ROS_DEBUG_STREAM("CartesianPositionController: Position Error = "
               << joint_positions_error(0) <<"  "
               << joint_positions_error(1) <<"  "
               << joint_positions_error(2) <<"  "
