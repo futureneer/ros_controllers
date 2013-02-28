@@ -39,6 +39,8 @@
 #include <algorithm>
 #include "pluginlib/class_list_macros.h"
 #include "tf_conversions/tf_kdl.h"
+#include <iostream>
+using namespace std;
 
 namespace velocity_controllers {
 
@@ -47,8 +49,8 @@ CartesianPositionController::CartesianPositionController()
 
 CartesianPositionController::~CartesianPositionController()
 {
-  // sub_command_.shutdown();
-  command_filter_.reset();
+  sub_command_.shutdown();
+  // command_filter_.reset();
 }
 
 bool CartesianPositionController::init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n)
@@ -101,14 +103,7 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
     ROS_ERROR("CartesianPositionController: Failed to extract KDL Chain from KDL Tree");
     return false;
   }
-
-  // Create Solvers
-  fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
-  ik_vel_solver_.reset(new KDL::ChainIkSolverVel_pinv(kdl_chain_));
-  ik_solver_.reset(new KDL::ChainIkSolverPos_NR(kdl_chain_, *fk_solver_.get(), *ik_vel_solver_.get()));
-  // Initialize Joint Values
-  joint_positions_.resize(kdl_chain_.getNrOfJoints());
-  joint_veolcities_.resize(kdl_chain_.getNrOfJoints());
+  ROS_INFO_STREAM("CartesianPositionController: KDL Chain found "<<kdl_chain_.getNrOfJoints()<< " joints");
 
   // Get all joint states from the hardware interface
   joint_names_ = robot->getJointNames();
@@ -116,6 +111,21 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
   for (unsigned i=0; i<num_joints_; i++)
     ROS_DEBUG("Got joint %s", joint_names_[i].c_str());
 
+  // Initialize Joint Values
+  joint_positions_.resize(num_joints_);
+  joint_positions_desired_.resize(num_joints_);
+  joint_veolcities_.resize(num_joints_);
+  joint_veolcities_desired_.resize(num_joints_);
+  joint_veolcities_command_.resize(num_joints_);
+  joint_positions_upper_limits_.resize(num_joints_);
+  joint_positions_lower_limits_.resize(num_joints_);
+
+  // Create PID Controller
+  control_toolbox::Pid pid_controller;
+  if (!pid_controller.init(ros::NodeHandle(node_,"pid_gains"))) return false;
+  for (unsigned int i = 0; i < num_joints_; i++)
+    pid_controller_.push_back(pid_controller);
+ 
   // Get URDF for joints
   for (unsigned i=0; i<num_joints_; i++){
     joint_urdf_.push_back( urdf.getJoint(joint_names_[i]) );
@@ -130,31 +140,43 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
     joint_vel_limits_.push_back(joint_urdf_[i]->limits->velocity);
     // Upper Position Limit
     joint_upper_position_limits_.push_back(joint_urdf_[i]->limits->upper);
+    joint_positions_upper_limits_(i) = joint_urdf_[i]->limits->upper;
     // Lower Position Limit
     joint_lower_position_limits_.push_back(joint_urdf_[i]->limits->lower);
+    joint_positions_lower_limits_(i) = joint_urdf_[i]->limits->lower;
   }
+
   // Get all joint handles
   for (unsigned i=0; i<joint_names_.size(); i++){
     joint_handles_.push_back( robot->getJointHandle(joint_names_[i]) );
   }
 
+  // Create Solvers
+  fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
+  ik_vel_solver_.reset(new KDL::ChainIkSolverVel_pinv(kdl_chain_));
+  ik_solver_.reset(new KDL::ChainIkSolverPos_NR_JL(kdl_chain_, joint_positions_upper_limits_,joint_positions_lower_limits_,*fk_solver_.get(), *ik_vel_solver_.get()));
+
   // Subscribe to pose commands
-  sub_command_.subscribe(node_, "command", 10);
-  command_filter_.reset(new tf::MessageFilter<geometry_msgs::PoseStamped>(
-                          sub_command_, tf_, root_name_, 10, node_));
-  command_filter_->registerCallback(boost::bind(&CartesianPositionController::command, this, _1));
+  sub_command_ = n.subscribe<geometry_msgs::PoseStamped>("command", 1, &CartesianPositionController::commandCB, this);
+  // sub_command_.subscribe(node_, "command", 10);
+  // command_filter_.reset(new tf::MessageFilter<geometry_msgs::PoseStamped>(
+  //                         sub_command_, tf_, root_name_, 10, node_));
+  // command_filter_->registerCallback(boost::bind(&CartesianPositionController::command, this, _1));
+
+
 
   return true;
 }
-
 
 void CartesianPositionController::starting(const ros::Time& time)
 {
   pose_desired_ = getPose();  
   last_time_ = time;
   loop_count_ = 0;
-  joint_positions_.resize(num_joints_);
-  joint_veolcities_.resize(num_joints_);
+
+  // reset pid controllers
+  for (unsigned int i=0; i<num_joints_; i++)
+    pid_controller_[i].reset();
 
   ROS_INFO_STREAM("CartesianPositionController: Initial Position = "
               << joint_positions_(0) <<"  "
@@ -187,14 +209,15 @@ KDL::Frame CartesianPositionController::getPose()
   return result;
 }
 
-void CartesianPositionController::command(const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
+void CartesianPositionController::commandCB(const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
 {
+  // ROS_WARN_STREAM("CartesianPositionController: Recieving Command");
   // convert message to transform
   tf::Stamped<tf::Pose> pose_stamped;
   poseStampedMsgToTF(*pose_msg, pose_stamped);
 
   // convert to reference frame of root link of the controller chain
-  tf_.transformPose(root_name_, pose_stamped, pose_stamped);
+  // tf_.transformPose(root_name_, pose_stamped, pose_stamped);
   tf::PoseTFToKDL(pose_stamped, pose_desired_);
 }
 
@@ -205,9 +228,32 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
   last_time_ = time;
   // Get last pose
   pose_measured_ = getPose();
+  
+  // ROS_INFO_STREAM("CartesianPositionController: Desired Cartesian Position = "
+  //             << pose_desired_.p.x() <<"  "
+  //             << pose_desired_.p.y() <<"  "
+  //             << pose_desired_.p.z());
 
   // Calculate desired joint positions from desired cartesian pos
-  ik_solver_->CartToJnt(joint_positions_,pose_desired_,joint_positions_desired_);
+  int e = ik_solver_->CartToJnt(joint_positions_,pose_desired_,joint_positions_desired_);
+  // ROS_INFO_STREAM("CartesianPositionController: IK Returned "<<e);
+
+
+  // ROS_INFO_STREAM("CartesianPositionController: Current Position = "
+  //             << joint_positions_(0) <<"  "
+  //             << joint_positions_(1) <<"  "
+  //             << joint_positions_(2) <<"  "
+  //             << joint_positions_(3) <<"  "
+  //             << joint_positions_(4) <<"  "
+  //             << joint_positions_(5));
+
+  // ROS_INFO_STREAM("CartesianPositionController: Desired Joint Position = "
+  //             << joint_positions_desired_(0) <<"  "
+  //             << joint_positions_desired_(1) <<"  "
+  //             << joint_positions_desired_(2) <<"  "
+  //             << joint_positions_desired_(3) <<"  "
+  //             << joint_positions_desired_(4) <<"  "
+  //             << joint_positions_desired_(5));
 
   // Calculate the position error
   KDL::JntArray joint_positions_error;
@@ -219,51 +265,42 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
               << joint_positions_error(2) <<"  "
               << joint_positions_error(3) <<"  "
               << joint_positions_error(4) <<"  "
-              << joint_positions_error(5)); 
-  // For each joint, calculate the required velocity to move to new position
-  // for(unsigned int i=0;i<num_joints_;i++){
-    
-  // }
+              << joint_positions_error(5) <<" - dt: " <<dt);
 
-  // // Assign velocity to each joint from command
-  // for(unsigned int i=0;i<num_joints_;i++){
-  //   double command_vel = 0;
-  //   double current_joint_cmd = command_[i];
-  //   hardware_interface::JointHandle joint = joint_handles_[i];
-  //   // Get current joint's velocity limits
-  //   double vel_limit = joint_vel_limits_[i];
-  //   // Check command velocity agains limits
-  //   if(current_joint_cmd > vel_limit){
-  //     command_vel = vel_limit;
-  //     ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<current_joint_cmd);
-  //   }else if(current_joint_cmd < -vel_limit){
-  //     command_vel = -vel_limit;
-  //     ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<current_joint_cmd);
-  //   }else{
-  //     command_vel = current_joint_cmd;
-  //   }
-  //   // Set velocity command to current joint
-  //   joint.setCommand(command_vel);
-  // }
+  // For each joint, calculate the required velocity to move to new position
+  for(unsigned int i=0;i<num_joints_;i++){
+    joint_veolcities_command_(i) = pid_controller_[i].updatePid(joint_positions_error(i), dt);
+  }
+
+  // Assign velocity to each joint from command
+  for(unsigned int i=0;i<num_joints_;i++){
+    // Get Joint Handle
+    hardware_interface::JointHandle joint = joint_handles_[i];
+    // Get current joint's velocity limits
+    double vel_limit = joint_vel_limits_[i];
+    // Check command velocity agains limits
+    if(joint_veolcities_command_(i) > vel_limit){
+      ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<joint_veolcities_command_(i));
+      joint_veolcities_command_(i) = vel_limit;
+    }else if(joint_veolcities_command_(i) < -vel_limit){
+      ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<joint_veolcities_command_(i));
+      joint_veolcities_command_(i) = -vel_limit;
+    }
+    // Set velocity command to current joint
+    joint.setCommand(joint_veolcities_command_(i));
+  }
 }
 
 void CartesianPositionController::stopping(const ros::Time& time)
 {
-  // ROS_INFO_STREAM("Shutting Down Controller and Commanding Zero Velocity.");
-  // // Set all velocities to zero.
-  // for(unsigned int i=0;i<num_joints_;i++){
-  //   double command_vel = 0;
-  //   hardware_interface::JointHandle joint = joint_handles_[i];
-  //   joint.setCommand(command_vel);
-  // }
-  // ROS_INFO_STREAM("Controller Stopped Successfully.");
-  
+  ROS_INFO_STREAM("Shutting Down Controller and Commanding Zero Velocity.");
+  // Set all velocities to zero.
+  for(unsigned int i=0;i<num_joints_;i++){
+    hardware_interface::JointHandle joint = joint_handles_[i];
+    joint.setCommand(0.0);
+  }
+  ROS_INFO_STREAM("Controller Stopped Successfully.");
 }
-
-// void CartesianPositionController::commandCB(const geometry_msgs::PoseStamped::ConstPtr& msg)
-// {
-//   // command_ = msg->data;
-// }
 
 }// namespace
 
