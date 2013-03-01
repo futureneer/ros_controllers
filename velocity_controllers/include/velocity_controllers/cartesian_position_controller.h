@@ -169,7 +169,8 @@ private:
 
   // TF and Subscribers
   tf::TransformListener tf_;
-  ros::Subscriber sub_command_;
+  ros::Subscriber cartesian_command_subscriber_;
+  ros::Subscriber joint_command_subscriber_;
 };
 
 }

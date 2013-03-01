@@ -46,7 +46,11 @@ using namespace std;
 namespace velocity_controllers {
 
 CartesianPositionController::CartesianPositionController(){}
-CartesianPositionController::~CartesianPositionController(){sub_command_.shutdown();}
+CartesianPositionController::~CartesianPositionController()
+{
+  cartesian_command_subscriber_.shutdown();
+  joint_command_subscriber_.shutdown();
+}
 
 bool CartesianPositionController::init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n)
 {
@@ -201,8 +205,8 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
   ik_solver_.reset(new KDL::ChainIkSolverPos_NR(kdl_chain_,*fk_solver_.get(), *ik_vel_solver_.get()));
 
   // Subscribe to pose commands
-  sub_command_ = n.subscribe<geometry_msgs::PoseStamped>("cartesian_pose_command", 1, &CartesianPositionController::commandCB_cartesian, this);
-  sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("joint_position_command", 1, &CartesianPositionController::commandCB_joint, this);
+  cartesian_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("cartesian_pose_command", 1, &CartesianPositionController::commandCB_cartesian, this);
+  joint_command_subscriber_ = n.subscribe<std_msgs::Float64MultiArray>("joint_position_command", 1, &CartesianPositionController::commandCB_joint, this);
   return true;
 }
 
@@ -263,7 +267,7 @@ KDL::Frame CartesianPositionController::getPose()
 
 void CartesianPositionController::commandCB_cartesian(const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
 {
-  // ROS_WARN_STREAM("CartesianPositionController: Recieving Command");
+  ROS_WARN_STREAM("CartesianPositionController: Pose Command Recieved");
   // convert message to transform
   tf::Stamped<tf::Pose> pose_stamped;
   poseStampedMsgToTF(*pose_msg, pose_stamped);
@@ -271,6 +275,7 @@ void CartesianPositionController::commandCB_cartesian(const geometry_msgs::PoseS
   // convert to reference frame of root link of the controller chain
   // tf_.transformPose(root_name_, pose_stamped, pose_stamped);
   tf::PoseTFToKDL(pose_stamped, pose_desired_);
+  joint_command_lock_ = true;
 }
 
 void CartesianPositionController::commandCB_joint(const std_msgs::Float64MultiArrayConstPtr& msg)
@@ -281,7 +286,6 @@ void CartesianPositionController::commandCB_joint(const std_msgs::Float64MultiAr
   for (unsigned i=0; i<num_joints_; i++){
     joint_positions_desired_(i) = command[i];
   }
-  joint_command_lock_ = true;
 }
 
 void CartesianPositionController::update(const ros::Time& time, const ros::Duration& period)
@@ -293,7 +297,7 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
   pose_measured_ = getPose();
 
 
-  if(joint_command_lock_ == false){
+  if(joint_command_lock_ == true){
     ROS_DEBUG_STREAM("CartesianPositionController: Desired Cartesian Position = "
                 << pose_desired_.p.x() <<"  "
                 << pose_desired_.p.y() <<"  "
@@ -301,6 +305,7 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
 
     // Calculate desired joint positions from desired cartesian pos
     int e = ik_solver_->CartToJnt(joint_positions_,pose_desired_,joint_positions_desired_);
+    joint_command_lock_ = false;
   }
 
   // Calculate the position error
