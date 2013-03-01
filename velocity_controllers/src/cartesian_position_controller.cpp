@@ -45,14 +45,8 @@ using namespace std;
 
 namespace velocity_controllers {
 
-CartesianPositionController::CartesianPositionController()
-{}
-
-CartesianPositionController::~CartesianPositionController()
-{
-  sub_command_.shutdown();
-  // command_filter_.reset();
-}
+CartesianPositionController::CartesianPositionController(){}
+CartesianPositionController::~CartesianPositionController(){sub_command_.shutdown();}
 
 bool CartesianPositionController::init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n)
 {
@@ -104,7 +98,7 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
     ROS_ERROR("CartesianPositionController: Failed to extract KDL Chain from KDL Tree");
     return false;
   }
-  ROS_INFO_STREAM("CartesianPositionController: KDL Chain found "<<kdl_chain_.getNrOfJoints()<< " joints");
+  ROS_INFO_STREAM("CartesianPositionController: KDL found Chain of "<<kdl_chain_.getNrOfJoints()<< " joints");
 
   // Number of joints
   num_joints_ = kdl_chain_.getNrOfJoints();
@@ -167,6 +161,7 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
       return false;
     }
   }
+
   // Get Joint Limits
   for (unsigned i=0; i<num_joints_; i++){
     // Velocity Limit
@@ -306,73 +301,20 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
 
     // Calculate desired joint positions from desired cartesian pos
     int e = ik_solver_->CartToJnt(joint_positions_,pose_desired_,joint_positions_desired_);
-    ROS_DEBUG_STREAM("CartesianPositionController: IK Returned "<<e);
-  }else{
-    ROS_DEBUG_STREAM("CartesianPositionController: Command from joint_command ");
   }
-
-  ROS_DEBUG_STREAM("CartesianPositionController: Current Position = "
-              << joint_positions_(0) <<"  "
-              << joint_positions_(1) <<"  "
-              << joint_positions_(2) <<"  "
-              << joint_positions_(3) <<"  "
-              << joint_positions_(4) <<"  "
-              << joint_positions_(5));
-
-  ROS_DEBUG_STREAM("CartesianPositionController: Desired Joint Position = "
-              << joint_positions_desired_(0) <<"  "
-              << joint_positions_desired_(1) <<"  "
-              << joint_positions_desired_(2) <<"  "
-              << joint_positions_desired_(3) <<"  "
-              << joint_positions_desired_(4) <<"  "
-              << joint_positions_desired_(5));
 
   // Calculate the position error
   KDL::JntArray joint_positions_error;
   KDL::Subtract(joint_positions_,joint_positions_desired_,joint_positions_error);
 
-  ROS_DEBUG_STREAM("CartesianPositionController: Position Error = "
-              << joint_positions_error(0) <<"  "
-              << joint_positions_error(1) <<"  "
-              << joint_positions_error(2) <<"  "
-              << joint_positions_error(3) <<"  "
-              << joint_positions_error(4) <<"  "
-              << joint_positions_error(5) <<" - dt: " <<dt);
-
   // For each joint, calculate the required velocity to move to new position
   for(unsigned int i=0;i<num_joints_;i++){
+    // Perform PID Update of Velocity
     joint_velocities_command_(i) = pid_controller_[i].updatePid(joint_positions_error(i), dt);
+    // Calculate Instantaneous Acceleration
     joint_accelerations_(i) = joint_velocities_command_(i) - joint_velocities_(i);
   }
-  ROS_INFO_STREAM("CartesianPositionController: Current Velocity = "
-            << joint_velocities_(0) <<"  "
-            << joint_velocities_(1) <<"  "
-            << joint_velocities_(2) <<"  "
-            << joint_velocities_(3) <<"  "
-            << joint_velocities_(4) <<"  "
-            << joint_velocities_(5) <<" - dt: " <<dt);
-  ROS_INFO_STREAM("CartesianPositionController: PID Velocity = "
-            << joint_velocities_command_(0) <<"  "
-            << joint_velocities_command_(1) <<"  "
-            << joint_velocities_command_(2) <<"  "
-            << joint_velocities_command_(3) <<"  "
-            << joint_velocities_command_(4) <<"  "
-            << joint_velocities_command_(5) <<" - dt: " <<dt);
-  ROS_INFO_STREAM("CartesianPositionController: Acceleration = "
-            << joint_accelerations_(0) <<"  "
-            << joint_accelerations_(1) <<"  "
-            << joint_accelerations_(2) <<"  "
-            << joint_accelerations_(3) <<"  "
-            << joint_accelerations_(4) <<"  "
-            << joint_accelerations_(5) <<" - dt: " <<dt);  
-  ROS_INFO_STREAM("CartesianPositionController: Acceleration (abs) = "
-            << fabs(joint_accelerations_(0)) <<"  "
-            << fabs(joint_accelerations_(1)) <<"  "
-            << fabs(joint_accelerations_(2)) <<"  "
-            << fabs(joint_accelerations_(3)) <<"  "
-            << fabs(joint_accelerations_(4)) <<"  "
-            << fabs(joint_accelerations_(5)) <<" - dt: " <<dt);
-
+  // Check acceleration with acceleration limits, and override if necessary
   for(unsigned int i=0;i<num_joints_;i++){
     if(fabs(joint_accelerations_(i)) > joint_acceleration_limits_[i]){
       if(joint_accelerations_(i) > 0)
@@ -390,22 +332,13 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
     double vel_limit = joint_velocity_limits_[i];
     // Check command velocity agains limits
     if(joint_velocities_command_(i) > vel_limit){
-      ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<joint_velocities_command_(i));
       joint_velocities_command_(i) = vel_limit;
     }else if(joint_velocities_command_(i) < -vel_limit){
-      ROS_DEBUG_STREAM("Velocity Limit Exceeded: "<<joint_velocities_command_(i));
       joint_velocities_command_(i) = -vel_limit;
     }
     // Set velocity command to current joint
     joint.setCommand(joint_velocities_command_(i));
   }
-    ROS_INFO_STREAM("CartesianPositionController: Velocity Commanded = "
-            << joint_velocities_command_(0) <<"  "
-            << joint_velocities_command_(1) <<"  "
-            << joint_velocities_command_(2) <<"  "
-            << joint_velocities_command_(3) <<"  "
-            << joint_velocities_command_(4) <<"  "
-            << joint_velocities_command_(5) <<" - dt: " <<dt);
 }
 
 void CartesianPositionController::stopping(const ros::Time& time)

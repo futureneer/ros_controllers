@@ -39,17 +39,17 @@
 
 /**
    @class velocity_controllers:CartesianPositionController
-   @brief Joint Velocity Controller (torque or force)
+   @brief Cartesian Position Controller (velocity)
 
-   This class passes the commanded effort down to the joint
+   This class calculates the IK of the robot using the cartesian pose command and commands joint velocity.  It can also command joint velocity by joint_position_commands
 
    @section ROS interface
 
    @param type Must be "CartesianPositionController"
-   @param joint Name of the joint to control.
 
    Subscribes to:
-   - @b command (std_msgs::Float64) : The joint effort to apply
+   - @b cartesian_pose_command (geometry_msgs::PoseStamped) : The cartesian pose to command
+   - @b joint_position_command (std_msgs::Float64MultiArray) : A vector of joint positions to command
 */
 
 // BOOST
@@ -101,8 +101,6 @@ public:
   void starting(const ros::Time& time);
   void update(const ros::Time& time, const ros::Duration& period);
   void stopping(const ros::Time& time);  
-
-  // void command(const geometry_msgs::PoseStamped::ConstPtr& pose_msg);
   void commandCB_cartesian(const geometry_msgs::PoseStamped::ConstPtr& msg);
   void commandCB_joint(const std_msgs::Float64MultiArrayConstPtr& msg);
 
@@ -162,7 +160,6 @@ private:
   std::vector<std::string> chain_link_names_;
   std::vector<hardware_interface::JointHandle> joint_handles_;
   std::vector< boost::shared_ptr<const urdf::Joint> > joint_urdf_;
-
   std::vector<double> command_;
 
   // reatltime publisher
@@ -173,8 +170,6 @@ private:
   // TF and Subscribers
   tf::TransformListener tf_;
   ros::Subscriber sub_command_;
-  // message_filters::Subscriber<geometry_msgs::PoseStamped> sub_command_;
-  // boost::scoped_ptr<tf::MessageFilter<geometry_msgs::PoseStamped> > command_filter_;
 };
 
 }
