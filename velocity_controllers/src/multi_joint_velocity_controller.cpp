@@ -84,7 +84,7 @@ bool MultiJointVelocityController::init(hardware_interface::VelocityJointInterfa
   // Resize commands to be the proper size
   command_.resize(num_joints_);
   // Initialize command subscriber
-  sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &MultiJointVelocityController::commandCB, this);
+  sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("joint_velocity_command", 1, &MultiJointVelocityController::commandCB, this);
   return true;
 }
 

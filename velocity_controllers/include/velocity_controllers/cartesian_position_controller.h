@@ -76,6 +76,7 @@
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainiksolvervel_pinv.hpp>
 #include <kdl/chainiksolverpos_nr_jl.hpp>
+#include <kdl/chainiksolverpos_nr.hpp>
 #include <kdl/chain.hpp>
 #include <kdl/frames.hpp>
 // Messaging
@@ -102,7 +103,8 @@ public:
   void stopping(const ros::Time& time);  
 
   // void command(const geometry_msgs::PoseStamped::ConstPtr& pose_msg);
-  void commandCB(const geometry_msgs::PoseStamped::ConstPtr& msg);
+  void commandCB_cartesian(const geometry_msgs::PoseStamped::ConstPtr& msg);
+  void commandCB_joint(const std_msgs::Float64MultiArrayConstPtr& msg);
 
   // Input to the controller
   KDL::Frame pose_desired_, pose_measured_;
@@ -118,6 +120,7 @@ private:
   ros::NodeHandle node_;
   std::string controller_name_, root_name_, tip_name_;
   ros::Time last_time_;
+  bool joint_command_lock_;
 
   // Robot Structure
   hardware_interface::VelocityJointInterface *robot_;
@@ -134,22 +137,26 @@ private:
   boost::scoped_ptr<KDL::ChainIkSolverVel_pinv> ik_vel_solver_;   
   boost::scoped_ptr<KDL::ChainFkSolverPos> fk_solver_;
   boost::scoped_ptr<KDL::ChainJntToJacSolver> jac_solver_;
-  boost::scoped_ptr<KDL::ChainIkSolverPos_NR_JL> ik_solver_;
+  boost::scoped_ptr<KDL::ChainIkSolverPos_NR_JL> ik_limit_solver_;
+  boost::scoped_ptr<KDL::ChainIkSolverPos_NR> ik_solver_;
   KDL::JntArray joint_positions_;
   KDL::JntArray joint_positions_desired_;
   KDL::JntArray joint_positions_upper_limits_;
   KDL::JntArray joint_positions_lower_limits_;
-  KDL::JntArray joint_veolcities_;
-  KDL::JntArray joint_veolcities_desired_;
-  KDL::JntArray joint_veolcities_command_;
+  KDL::JntArray joint_velocities_;
+  KDL::JntArray joint_velocities_desired_;
+  KDL::JntArray joint_velocities_command_;
   KDL::Jacobian jacobian_;
 
   // URDF and Joint Information
   unsigned int num_joints_;
-  std::vector<double> joint_vel_limits_;
+  std::vector<double> joint_velocity_limits_;
+  std::vector<double> joint_acceleration_limits_;
   std::vector<double> joint_upper_position_limits_;
   std::vector<double> joint_lower_position_limits_;
-  std::vector<std::string> joint_names_;
+  std::vector<std::string> hw_joint_names_;
+  std::vector<std::string> chain_joint_names_;
+  std::vector<std::string> chain_link_names_;
   std::vector<hardware_interface::JointHandle> joint_handles_;
   std::vector< boost::shared_ptr<const urdf::Joint> > joint_urdf_;
 
