@@ -40,6 +40,7 @@
 #include "pluginlib/class_list_macros.h"
 #include "tf_conversions/tf_kdl.h"
 #include <iostream>
+#include <math.h>
 using namespace std;
 
 namespace velocity_controllers {
@@ -146,6 +147,7 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
   joint_positions_.resize(num_joints_);
   joint_positions_desired_.resize(num_joints_);
   joint_velocities_.resize(num_joints_);
+  joint_accelerations_.resize(num_joints_);
   joint_velocities_desired_.resize(num_joints_);
   joint_velocities_command_.resize(num_joints_);
   joint_positions_upper_limits_.resize(num_joints_);
@@ -216,10 +218,13 @@ void CartesianPositionController::starting(const ros::Time& time)
   last_time_ = time;
   loop_count_ = 0;
 
+  // Set initial velocity value
+  // for (unsigned i=0; i<num_joints_; i++)
+  //   joint_velocities_last_(i) = 0;
+
   // reset pid controllers
   for (unsigned int i=0; i<num_joints_; i++)
     pid_controller_[i].reset();
-
 
   ROS_INFO_STREAM("CartesianPositionController: Initial Cartesian Position = "
               << pose_desired_.p.x() <<"  "
@@ -337,6 +342,44 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
   // For each joint, calculate the required velocity to move to new position
   for(unsigned int i=0;i<num_joints_;i++){
     joint_velocities_command_(i) = pid_controller_[i].updatePid(joint_positions_error(i), dt);
+    joint_accelerations_(i) = joint_velocities_command_(i) - joint_velocities_(i);
+  }
+  ROS_INFO_STREAM("CartesianPositionController: Current Velocity = "
+            << joint_velocities_(0) <<"  "
+            << joint_velocities_(1) <<"  "
+            << joint_velocities_(2) <<"  "
+            << joint_velocities_(3) <<"  "
+            << joint_velocities_(4) <<"  "
+            << joint_velocities_(5) <<" - dt: " <<dt);
+  ROS_INFO_STREAM("CartesianPositionController: PID Velocity = "
+            << joint_velocities_command_(0) <<"  "
+            << joint_velocities_command_(1) <<"  "
+            << joint_velocities_command_(2) <<"  "
+            << joint_velocities_command_(3) <<"  "
+            << joint_velocities_command_(4) <<"  "
+            << joint_velocities_command_(5) <<" - dt: " <<dt);
+  ROS_INFO_STREAM("CartesianPositionController: Acceleration = "
+            << joint_accelerations_(0) <<"  "
+            << joint_accelerations_(1) <<"  "
+            << joint_accelerations_(2) <<"  "
+            << joint_accelerations_(3) <<"  "
+            << joint_accelerations_(4) <<"  "
+            << joint_accelerations_(5) <<" - dt: " <<dt);  
+  ROS_INFO_STREAM("CartesianPositionController: Acceleration (abs) = "
+            << fabs(joint_accelerations_(0)) <<"  "
+            << fabs(joint_accelerations_(1)) <<"  "
+            << fabs(joint_accelerations_(2)) <<"  "
+            << fabs(joint_accelerations_(3)) <<"  "
+            << fabs(joint_accelerations_(4)) <<"  "
+            << fabs(joint_accelerations_(5)) <<" - dt: " <<dt);
+
+  for(unsigned int i=0;i<num_joints_;i++){
+    if(fabs(joint_accelerations_(i)) > joint_acceleration_limits_[i]){
+      if(joint_accelerations_(i) > 0)
+        joint_velocities_command_(i) = joint_velocities_(i) + joint_acceleration_limits_[i];
+      else
+        joint_velocities_command_(i) = joint_velocities_(i) - joint_acceleration_limits_[i];
+    }
   }
 
   // Assign velocity to each joint from command
@@ -356,6 +399,13 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
     // Set velocity command to current joint
     joint.setCommand(joint_velocities_command_(i));
   }
+    ROS_INFO_STREAM("CartesianPositionController: Velocity Commanded = "
+            << joint_velocities_command_(0) <<"  "
+            << joint_velocities_command_(1) <<"  "
+            << joint_velocities_command_(2) <<"  "
+            << joint_velocities_command_(3) <<"  "
+            << joint_velocities_command_(4) <<"  "
+            << joint_velocities_command_(5) <<" - dt: " <<dt);
 }
 
 void CartesianPositionController::stopping(const ros::Time& time)

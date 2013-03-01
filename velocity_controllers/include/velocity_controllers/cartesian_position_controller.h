@@ -144,6 +144,9 @@ private:
   KDL::JntArray joint_positions_upper_limits_;
   KDL::JntArray joint_positions_lower_limits_;
   KDL::JntArray joint_velocities_;
+  KDL::JntArray joint_accelerations_;
+  KDL::JntArray joint_velocities_last_;
+  KDL::JntArray joint_velocities_dt_;
   KDL::JntArray joint_velocities_desired_;
   KDL::JntArray joint_velocities_command_;
   KDL::Jacobian jacobian_;
