@@ -34,8 +34,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef VELOCITY_CONTROLLERS_CARTESIAN_POSITION_CONTROLLER_H
-#define VELOCITY_CONTROLLERS_CARTESIAN_POSITION_CONTROLLER_H
+#ifndef VELOCITY_CONTROLLERS_CARTESIAN_SETPOINT_CONTROLLER_H
+#define VELOCITY_CONTROLLERS_CARTESIAN_SETPOINT_CONTROLLER_H
 
 /**
    @class velocity_controllers:CartesianSetpointController

@@ -34,7 +34,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include <velocity_controllers/cartesian_position_controller.h>
+#include <velocity_controllers/cartesian_setpoint_controller.h>
 #include <pluginlib/class_list_macros.h>
 #include <algorithm>
 #include "pluginlib/class_list_macros.h"
