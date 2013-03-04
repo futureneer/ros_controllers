@@ -272,7 +272,7 @@ KDL::Frame CartesianSetpointController::getPose()
 
 void CartesianSetpointController::commandCB_cartesian(const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
 {
-  ROS_WARN_STREAM("CartesianSetpointController: Pose Command Recieved");
+  ROS_DEBUG_STREAM("CartesianSetpointController: Pose Command Recieved");
   // convert message to transform
   tf::Stamped<tf::Pose> pose_stamped;
   poseStampedMsgToTF(*pose_msg, pose_stamped);
