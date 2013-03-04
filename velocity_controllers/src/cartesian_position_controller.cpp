@@ -49,7 +49,7 @@ CartesianPositionController::CartesianPositionController(){}
 CartesianPositionController::~CartesianPositionController()
 {
   cartesian_command_subscriber_.shutdown();
-  joint_command_subscriber_.shutdown();
+  // joint_command_subscriber_.shutdown();
 }
 
 bool CartesianPositionController::init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n)
@@ -144,6 +144,8 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
   // Initialize Joint Values
   joint_positions_.resize(num_joints_);
   joint_positions_desired_.resize(num_joints_);
+    for(unsigned int i = 0;i<num_joints_;i++)
+      joint_positions_desired_(i) = 0;
   joint_velocities_.resize(num_joints_);
   joint_accelerations_.resize(num_joints_);
   joint_velocities_desired_.resize(num_joints_);
@@ -206,7 +208,7 @@ bool CartesianPositionController::init(hardware_interface::VelocityJointInterfac
 
   // Subscribe to pose commands
   cartesian_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("cartesian_pose_command", 1, &CartesianPositionController::commandCB_cartesian, this);
-  joint_command_subscriber_ = n.subscribe<std_msgs::Float64MultiArray>("joint_position_command", 1, &CartesianPositionController::commandCB_joint, this);
+  // joint_command_subscriber_ = n.subscribe<std_msgs::Float64MultiArray>("joint_position_command", 1, &CartesianPositionController::commandCB_joint, this);
   return true;
 }
 
@@ -216,10 +218,6 @@ void CartesianPositionController::starting(const ros::Time& time)
   pose_desired_ = getPose();  
   last_time_ = time;
   loop_count_ = 0;
-
-  // Set initial velocity value
-  // for (unsigned i=0; i<num_joints_; i++)
-  //   joint_velocities_last_(i) = 0;
 
   // reset pid controllers
   for (unsigned int i=0; i<num_joints_; i++)
@@ -278,15 +276,15 @@ void CartesianPositionController::commandCB_cartesian(const geometry_msgs::PoseS
   joint_command_lock_ = true;
 }
 
-void CartesianPositionController::commandCB_joint(const std_msgs::Float64MultiArrayConstPtr& msg)
-{
-  ROS_WARN_STREAM("CartesianPositionController: Joint Command Recieved");
-  std::vector<double> command;
-  command = msg->data;
-  for (unsigned i=0; i<num_joints_; i++){
-    joint_positions_desired_(i) = command[i];
-  }
-}
+// void CartesianPositionController::commandCB_joint(const std_msgs::Float64MultiArrayConstPtr& msg)
+// {
+//   ROS_WARN_STREAM("CartesianPositionController: Joint Command Recieved");
+//   std::vector<double> command;
+//   command = msg->data;
+//   for (unsigned i=0; i<num_joints_; i++){
+//     joint_positions_desired_(i) = command[i];
+//   }
+// }
 
 void CartesianPositionController::update(const ros::Time& time, const ros::Duration& period)
 {
@@ -319,6 +317,23 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
     // Calculate Instantaneous Acceleration
     joint_accelerations_(i) = joint_velocities_command_(i) - joint_velocities_(i);
   }
+
+  ROS_WARN_STREAM("CartesianPositionController: Desired Position = "
+              << joint_positions_desired_(0) <<"  "
+              << joint_positions_desired_(1) <<"  "
+              << joint_positions_desired_(2) <<"  "
+              << joint_positions_desired_(3) <<"  "
+              << joint_positions_desired_(4) <<"  "
+              << joint_positions_desired_(5)); 
+
+  ROS_WARN_STREAM("CartesianPositionController: Current Position = "
+              << joint_positions_(0) <<"  "
+              << joint_positions_(1) <<"  "
+              << joint_positions_(2) <<"  "
+              << joint_positions_(3) <<"  "
+              << joint_positions_(4) <<"  "
+              << joint_positions_(5)); 
+
   // Check acceleration with acceleration limits, and override if necessary
   for(unsigned int i=0;i<num_joints_;i++){
     if(fabs(joint_accelerations_(i)) > joint_acceleration_limits_[i]){
@@ -344,6 +359,7 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
     // Set velocity command to current joint
     joint.setCommand(joint_velocities_command_(i));
   }
+
 }
 
 void CartesianPositionController::stopping(const ros::Time& time)
