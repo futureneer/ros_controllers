@@ -146,6 +146,8 @@ private:
   KDL::JntArray joint_velocities_command_;
   KDL::Jacobian jacobian_;
 
+  double setpoint_limit_;
+
   // URDF and Joint Information
   unsigned int num_joints_;
   std::vector<double> joint_velocity_limits_;
