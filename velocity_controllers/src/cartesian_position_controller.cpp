@@ -318,22 +318,6 @@ void CartesianPositionController::update(const ros::Time& time, const ros::Durat
     joint_accelerations_(i) = joint_velocities_command_(i) - joint_velocities_(i);
   }
 
-  ROS_WARN_STREAM("CartesianPositionController: Desired Position = "
-              << joint_positions_desired_(0) <<"  "
-              << joint_positions_desired_(1) <<"  "
-              << joint_positions_desired_(2) <<"  "
-              << joint_positions_desired_(3) <<"  "
-              << joint_positions_desired_(4) <<"  "
-              << joint_positions_desired_(5)); 
-
-  ROS_WARN_STREAM("CartesianPositionController: Current Position = "
-              << joint_positions_(0) <<"  "
-              << joint_positions_(1) <<"  "
-              << joint_positions_(2) <<"  "
-              << joint_positions_(3) <<"  "
-              << joint_positions_(4) <<"  "
-              << joint_positions_(5)); 
-
   // Check acceleration with acceleration limits, and override if necessary
   for(unsigned int i=0;i<num_joints_;i++){
     if(fabs(joint_accelerations_(i)) > joint_acceleration_limits_[i]){
