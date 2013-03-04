@@ -26,7 +26,8 @@ rosbuild_add_library(${PROJECT_NAME}
                      src/joint_velocity_controller.cpp include/velocity_controllers/joint_velocity_controller.h
                      src/joint_position_controller.cpp include/velocity_controllers/joint_position_controller.h
 		             src/multi_joint_velocity_controller.cpp include/velocity_controllers/multi_joint_velocity_controller.h
-		             src/cartesian_position_controller.cpp include/velocity_controllers/cartesian_position_controller.h)
+		             src/cartesian_position_controller.cpp include/velocity_controllers/cartesian_position_controller.h
+		             src/cartesian_setpoint_controller.cpp include/velocity_controllers/cartesian_setpoint_controller.h)
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
 #target_link_libraries(${PROJECT_NAME} another_library)
 #rosbuild_add_boost_directories()

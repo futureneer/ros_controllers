@@ -24,4 +24,10 @@
     </description>
   </class>
 
+  <class name="velocity_controllers/CartesianSetpointController" type="velocity_controllers::CartesianSetpointController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      The CartesianSetpointController tracks cartesian frame commands for the end effector as defined by an URDF file and the robot_definition parameter. If these frames are further apart than the setpoint limit (setpoint_limit on the parameter server) than the controller will linearly interpolate between the current pose and the setpoint.Input is a cartesian pose (geometrt_msgs/Pose). It commands velocity to each of the joints. It expects a VelocityJointInterface type of hardware interface.
+    </description>
+  </class>
+
 </library>
