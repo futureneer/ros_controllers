@@ -166,12 +166,26 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
   joint_velocities_command_.resize(num_joints_);
   joint_positions_upper_limits_.resize(num_joints_);
   joint_positions_lower_limits_.resize(num_joints_);
+  joint_velocities_overshoot_.resize(num_joints_);
 
   // Create PID Controller
   control_toolbox::Pid pid_controller;
   if (!pid_controller.init(ros::NodeHandle(node_,"pid_gains"))) return false;
   for (unsigned int i = 0; i < num_joints_; i++)
     pid_controller_.push_back(pid_controller);
+
+  for (unsigned int i = 0; i < num_joints_; i++){
+    if (!pid_controller.init(ros::NodeHandle(node_,"pid_gains/" + chain_joint_names_[i]))){
+      ROS_WARN_STREAM("CartesianSetpointController: No PID Gains found on parameter server for joint "<<chain_joint_names_[i]);
+      return false;
+    }else{
+      pid_controller_.push_back(pid_controller);
+      double p,i,d,i_max,i_min;
+      pid_controller.getGains(p, i, d, i_max, i_min);
+      ROS_INFO_STREAM("CartesianSetpointController: PID Gains for joint " <<chain_joint_names_[i]<<" --> p: "<<p<<", i: "<<i<<", d: "<<d);
+    }
+    
+  }
  
   // Get URDF for joints
   for (unsigned i=0; i<num_joints_; i++){
@@ -231,6 +245,7 @@ void CartesianSetpointController::starting(const ros::Time& time)
   pose_desired_ = getPose();  
   last_time_ = time;
   loop_count_ = 0;
+  max_vel_overshoot_ratio_ = 0;
 
   // reset pid controllers
   for (unsigned int i=0; i<num_joints_; i++)
@@ -328,6 +343,27 @@ void CartesianSetpointController::update(const ros::Time& time, const ros::Durat
           joint_velocities_command_(i) = joint_velocities_(i) - joint_acceleration_limits_[i];
       }
     }
+
+    // Calculate max overshoot ratio
+    // max_vel_overshoot_ratio_ = 0;
+    // for(unsigned int i=0;i<num_joints_;i++){
+    //   joint_velocities_overshoot_(i) = fabs(joint_velocities_command_(i)) - fabs(joint_velocity_limits_[i]);
+    // }
+    // for(unsigned int i=0;i<num_joints_;i++){
+    //   double overshoot_ratio;
+    //   if(joint_velocities_overshoot_(i) > 0){
+    //     overshoot_ratio = joint_velocities_overshoot_(i) / fabs(joint_velocity_limits_[i]);
+    //     if(overshoot_ratio > max_vel_overshoot_ratio_)
+    //       max_vel_overshoot_ratio_ = overshoot_ratio;
+    //   }  
+    // }
+
+    // // Scale velocities to overshoot ratio
+    // for(unsigned int i=0;i<num_joints_;i++){
+    //   if(max_vel_overshoot_ratio_ > 0){
+    //     joint_velocities_command_(i) = joint_velocities_command_(i)*max_vel_overshoot_ratio_;
+    //   }
+    // }
 
     // Assign velocity to each joint from command
     for(unsigned int i=0;i<num_joints_;i++){

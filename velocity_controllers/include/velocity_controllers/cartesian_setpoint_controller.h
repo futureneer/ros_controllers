@@ -137,6 +137,8 @@ private:
   KDL::JntArray joint_velocities_dt_;
   KDL::JntArray joint_velocities_desired_;
   KDL::JntArray joint_velocities_command_;
+  KDL::JntArray joint_velocities_overshoot_;
+  double max_vel_overshoot_ratio_;
   KDL::Jacobian jacobian_;
 
   // Paths
