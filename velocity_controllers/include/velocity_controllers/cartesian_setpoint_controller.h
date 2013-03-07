@@ -75,9 +75,17 @@
 #include <kdl/chainjnttojacsolver.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainiksolvervel_pinv.hpp>
+#include <kdl/chainiksolvervel_wdls.hpp>
 #include <kdl/chainiksolverpos_nr_jl.hpp>
 #include <kdl/chainiksolverpos_nr.hpp>
+
+#include <kdl/treeiksolverpos_nr_jl.hpp>
+#include <kdl/treefksolverpos_recursive.hpp>
+#include <kdl/treeiksolvervel_wdls.hpp>
+
 #include <kdl/chain.hpp>
+#include <kdl/path_line.hpp>
+#include <kdl/rotational_interpolation_sa.hpp>
 #include <kdl/frames.hpp>
 // Messaging
 #include <message_filters/subscriber.h>
@@ -118,7 +126,6 @@ private:
   ros::NodeHandle node_;
   std::string controller_name_, root_name_, tip_name_;
   ros::Time last_time_;
-  bool joint_command_lock_;
 
   // Robot Structure
   hardware_interface::VelocityJointInterface *robot_;
@@ -130,11 +137,16 @@ private:
   std::string robot_desc_string_;
   KDL::Tree kdl_tree_;
   KDL::Chain kdl_chain_;
-  boost::scoped_ptr<KDL::ChainIkSolverVel_pinv> ik_vel_solver_;   
-  boost::scoped_ptr<KDL::ChainFkSolverPos> fk_solver_;
-  boost::scoped_ptr<KDL::ChainJntToJacSolver> jac_solver_;
-  boost::scoped_ptr<KDL::ChainIkSolverPos_NR_JL> ik_limit_solver_;
-  boost::scoped_ptr<KDL::ChainIkSolverPos_NR> ik_solver_;
+  boost::scoped_ptr<KDL::TreeIkSolverVel_wdls> ik_vel_tree_solver_; 
+  boost::scoped_ptr<KDL::TreeIkSolverPos_NR_JL> ik_tree_solver_;   
+  boost::scoped_ptr<KDL::TreeFkSolverPos_recursive> fk_tree_solver_;
+
+  // boost::scoped_ptr<KDL::ChainIkSolverVel_pinv> ik_vel_solver_; 
+  // boost::scoped_ptr<KDL::ChainIkSolverVel_wdls> ik_vel_solver_wdls_;   
+  // boost::scoped_ptr<KDL::ChainFkSolverPos> fk_solver_;
+  // boost::scoped_ptr<KDL::ChainJntToJacSolver> jac_solver_;
+  // boost::scoped_ptr<KDL::ChainIkSolverPos_NR_JL> ik_limit_solver_;
+  // boost::scoped_ptr<KDL::ChainIkSolverPos_NR> ik_solver_;
   KDL::JntArray joint_positions_;
   KDL::JntArray joint_positions_desired_;
   KDL::JntArray joint_positions_upper_limits_;
@@ -146,7 +158,13 @@ private:
   KDL::JntArray joint_velocities_command_;
   KDL::Jacobian jacobian_;
 
+  // Paths
+  KDL::Path_Line* current_path_;
+  bool on_path_;
   double setpoint_limit_;
+  double setpoint_increment_;
+  // int path_count_;
+  // double path_dist_;
 
   // URDF and Joint Information
   unsigned int num_joints_;
@@ -169,7 +187,6 @@ private:
   // TF and Subscribers
   tf::TransformListener tf_;
   ros::Subscriber cartesian_command_subscriber_;
-  // ros::Subscriber joint_command_subscriber_;
 };
 
 }
