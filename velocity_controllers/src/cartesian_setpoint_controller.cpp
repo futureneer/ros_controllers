@@ -195,7 +195,7 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
   }
   // Get acceleration limits from parameter server
   joint_acceleration_limits_.resize(num_joints_);
-  for (int i = 0; i < num_joints_; ++i){
+  for (unsigned int i = 0; i < num_joints_; ++i){
     if (!node_.getParam("acceleration_limits/" + chain_joint_names_[i], joint_acceleration_limits_[i])){
       ROS_WARN_STREAM("CartesianSetpointController: No acceleration limit found on parameter server for joint "<<chain_joint_names_[i]<<", setting to default (0.0)");
       joint_acceleration_limits_[i] = 0.0;
@@ -214,23 +214,12 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
     joint_handles_.push_back( robot->getJointHandle(chain_joint_names_[i]) );
   }
 
-  // Create Solvers
-  // fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
-  // ik_vel_solver_.reset(new KDL::ChainIkSolverVel_pinv(kdl_chain_));
-  // ik_vel_solver_wdls_.reset(new KDL::ChainIkSolverVel_wdls(kdl_chain_));
-  // ik_limit_solver_.reset(new KDL::ChainIkSolverPos_NR_JL(kdl_chain_, joint_positions_lower_limits_,joint_positions_upper_limits_,*fk_solver_.get(), *ik_vel_solver_wdls_.get()));
-  // ik_solver_.reset(new KDL::ChainIkSolverPos_NR(kdl_chain_,*fk_solver_.get(), *ik_vel_solver_.get()));
-
+  // Create FK and IK Solvers
   std::vector<std::string> end_points;
   end_points.push_back(tip_name_);
   ik_vel_tree_solver_.reset(new KDL::TreeIkSolverVel_wdls(kdl_tree_,end_points));
   fk_tree_solver_.reset(new KDL::TreeFkSolverPos_recursive(kdl_tree_));
-  ik_tree_solver_.reset(new KDL::TreeIkSolverPos_NR_JL(kdl_tree_,
-                                                    end_points,
-                                                    joint_positions_lower_limits_,
-                                                    joint_positions_upper_limits_,
-                                                    *fk_tree_solver_.get(),
-                                                    *ik_vel_tree_solver_.get()));
+  ik_tree_solver_.reset(new KDL::TreeIkSolverPos_NR_JL(kdl_tree_, end_points, joint_positions_lower_limits_, joint_positions_upper_limits_, *fk_tree_solver_.get(), *ik_vel_tree_solver_.get()));
 
   // Subscribe to pose commands
   cartesian_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("cartesian_pose_command", 1, &CartesianSetpointController::commandCB_cartesian, this);
@@ -242,8 +231,6 @@ void CartesianSetpointController::starting(const ros::Time& time)
   pose_desired_ = getPose();  
   last_time_ = time;
   loop_count_ = 0;
-  // on_path_ = false;
-  // path_dist_ = 0.0;
 
   // reset pid controllers
   for (unsigned int i=0; i<num_joints_; i++)
@@ -281,12 +268,9 @@ KDL::Frame CartesianSetpointController::getPose()
       joint_positions_(i) = joint_handles_[i].getPosition();
       joint_velocities_(i) = joint_handles_[i].getVelocity();
   }
-
   // get cartesian pose
   KDL::Frame result;
-  // fk_solver_->JntToCart(joint_positions_, result);
   fk_tree_solver_->JntToCart(joint_positions_, result, tip_name_);
-
   return result;
 }
 
@@ -309,26 +293,8 @@ void CartesianSetpointController::update(const ros::Time& time, const ros::Durat
   last_time_ = time;
   // Get last pose
   pose_measured_ = getPose();
-  KDL::Frame pose_command = pose_measured_;
-
-  // Calculate Path to desired pose
-  // if(!on_path_){
-  //   path_count_ = 0;
-  //   KDL::RotationalInterpolation_SingleAxis rot;
-  //     rot.SetStartEnd(pose_measured_.M,pose_desired_.M);
-  //   current_path_ = new KDL::Path_Line(pose_measured_,pose_desired_,&rot,.1);
-  //   // Total path distance
-  //   path_dist_ = current_path_.PathLength();
-
-
-  //   // Get frame at current position along path.
-  //   pose_command = current_path_.Pos(current_path_.LengthToS(double(path_count_)*setpoint_limit_));
-
-  // }
-
 
   // Calculate desired joint positions from desired cartesian pos
-  // int e = ik_solver_->CartToJnt(joint_positions_,pose_desired_,joint_positions_desired_);
   std::map<std::string,KDL::Frame> frames;
   frames[tip_name_] = pose_desired_;
   int e = ik_tree_solver_->CartToJnt(joint_positions_, frames, joint_positions_desired_);
