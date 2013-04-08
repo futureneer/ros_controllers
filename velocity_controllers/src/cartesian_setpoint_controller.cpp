@@ -170,14 +170,14 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
   // Create PID Controller
   control_toolbox::Pid pid_controller;
   for (unsigned int i = 0; i < num_joints_; i++){
-    if (!pid_controller.init(ros::NodeHandle(node_,"pid_gains/" + chain_joint_names_[i]))){
+   if (!pid_controller.init(ros::NodeHandle(node_,"pid_gains/" + chain_joint_names_[i]))){
       ROS_WARN_STREAM("CartesianSetpointController: No PID Gains found on parameter server for joint "<<chain_joint_names_[i]);
       return false;
     }else{
       pid_controller_.push_back(pid_controller);
-      double p,i,d,i_max,i_min;
-      pid_controller.getGains(p, i, d, i_max, i_min);
-      ROS_INFO_STREAM("CartesianSetpointController: PID Gains for joint " <<chain_joint_names_[i]<<" --> p: "<<p<<", i: "<<i<<", d: "<<d);
+      double p,i_val,d,i_max,i_min;
+      pid_controller.getGains(p, i_val, d, i_max, i_min);
+     ROS_INFO_STREAM("CartesianSetpointController: PID Gains for joint " <<chain_joint_names_[i]<<" --> p: "<<p<<", i: "<<i_val<<", d: "<<d);
     }
     
   }
