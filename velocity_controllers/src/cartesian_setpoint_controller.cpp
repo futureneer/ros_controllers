@@ -86,6 +86,13 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
   }
   ROS_INFO_STREAM("CartesianSetpointController: setpoint_increment is " << setpoint_increment_);
 
+  if (!node_.getParam("ik_iterations", ik_iterations_)){
+    ROS_ERROR("CartesianSetpointController: No IK Iteration value found on parameter server (namespace: %s)",
+              node_.getNamespace().c_str());
+    return false;
+  }
+  ROS_INFO_STREAM("CartesianSetpointController: IK Iterations are " << ik_iterations_);
+
   // Check hardware interface is valid
   assert(robot);
   robot_ = robot;
@@ -170,10 +177,6 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
 
   // Create PID Controller
   control_toolbox::Pid pid_controller;
-  if (!pid_controller.init(ros::NodeHandle(node_,"pid_gains"))) return false;
-  for (unsigned int i = 0; i < num_joints_; i++)
-    pid_controller_.push_back(pid_controller);
-
   for (unsigned int i = 0; i < num_joints_; i++){
     if (!pid_controller.init(ros::NodeHandle(node_,"pid_gains/" + chain_joint_names_[i]))){
       ROS_WARN_STREAM("CartesianSetpointController: No PID Gains found on parameter server for joint "<<chain_joint_names_[i]);
@@ -233,7 +236,7 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
   end_points.push_back(tip_name_);
   ik_vel_tree_solver_.reset(new KDL::TreeIkSolverVel_wdls(kdl_tree_,end_points));
   fk_tree_solver_.reset(new KDL::TreeFkSolverPos_recursive(kdl_tree_));
-  ik_tree_solver_.reset(new KDL::TreeIkSolverPos_NR_JL(kdl_tree_, end_points, joint_positions_lower_limits_, joint_positions_upper_limits_, *fk_tree_solver_.get(), *ik_vel_tree_solver_.get()));
+  ik_tree_solver_.reset(new KDL::TreeIkSolverPos_NR_JL(kdl_tree_, end_points, joint_positions_lower_limits_, joint_positions_upper_limits_, *fk_tree_solver_.get(), *ik_vel_tree_solver_.get(),ik_iterations_));
 
   // Subscribe to pose commands
   cartesian_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("cartesian_pose_command", 1, &CartesianSetpointController::commandCB_cartesian, this);

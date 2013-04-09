@@ -147,6 +147,8 @@ private:
   double setpoint_limit_;
   double setpoint_increment_;
 
+  int ik_iterations_;
+
   // URDF and Joint Information
   unsigned int num_joints_;
   std::vector<double> joint_velocity_limits_;
