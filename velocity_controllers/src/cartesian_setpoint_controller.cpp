@@ -98,7 +98,7 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
   robot_ = robot;
 
   // Get the robot description file
-  if (!node_.getParam("/robot_description", robot_desc_string_)){
+  if (!node_.getParam("/adjutant/device/merlin/robot_description", robot_desc_string_)){
     ROS_ERROR("CartesianSetpointController: No robot description found on parameter server (namespace: %s)",
               node_.getNamespace().c_str());
     return false;
@@ -107,7 +107,7 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
 
   // Load URDF for robot
   urdf::Model urdf;
-  if (!urdf.initParam("/robot_description")){
+  if (!urdf.initParam("/adjutant/device/merlin/robot_description")){
     ROS_ERROR("CartesianSetpointController: No URDF file found on parameter server (namespace: %s)",
               node_.getNamespace().c_str());
     return false;
@@ -238,7 +238,7 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
   ik_tree_solver_.reset(new KDL::TreeIkSolverPos_NR_JL(kdl_tree_, end_points, joint_positions_lower_limits_, joint_positions_upper_limits_, *fk_tree_solver_.get(), *ik_vel_tree_solver_.get(),ik_iterations_));
 
   // Subscribe to pose commands
-  cartesian_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("cartesian_pose_command", 1, &CartesianSetpointController::commandCB_cartesian, this);
+  cartesian_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("input/command/cartesian_pose", 1, &CartesianSetpointController::commandCB_cartesian, this);
   return true;
 }
 
