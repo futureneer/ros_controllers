@@ -239,6 +239,7 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
 
   // Subscribe to pose commands
   cartesian_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("input/command/cartesian_pose", 1, &CartesianSetpointController::commandCB_cartesian, this);
+  cartesian_offset_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("input/command/cartesian_pose_offset", 1, &CartesianSetpointController::commandCB_cartesian_offset,this);
   return true;
 }
 
@@ -249,6 +250,7 @@ void CartesianSetpointController::starting(const ros::Time& time)
   loop_count_ = 0;
   max_vel_overshoot_ratio_ = 0;
 
+  pose_initial_ = getPose();
   // reset pid controllers
   for (unsigned int i=0; i<num_joints_; i++)
     pid_controller_[i].reset();
@@ -301,6 +303,21 @@ void CartesianSetpointController::commandCB_cartesian(const geometry_msgs::PoseS
   // convert to reference frame of root link of the controller chain
   // tf_.transformPose(root_name_, pose_stamped, pose_stamped);
   tf::PoseTFToKDL(pose_stamped, pose_desired_);
+}
+void CartesianSetpointController::commandCB_cartesian_offset(const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
+{
+  ROS_DEBUG_STREAM("CartesianSetpointController: Pose Offset Command Recieved");
+  // convert message to transform
+  tf::Stamped<tf::Pose> pose_stamped;
+  poseStampedMsgToTF(*pose_msg, pose_stamped);
+
+  // convert to reference frame of root link of the controller chain
+  // tf_.transformPose(root_name_, pose_stamped, pose_stamped);
+  tf::PoseTFToKDL(pose_stamped, pose_desired_offset_);
+
+  pose_desired_ = pose_desired_offset_;
+  pose_desired_.p = pose_initial_.p + pose_desired_offset_.p;
+
 }
 
 void CartesianSetpointController::update(const ros::Time& time, const ros::Duration& period)
