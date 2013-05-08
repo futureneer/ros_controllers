@@ -98,7 +98,7 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
   robot_ = robot;
 
   // Get the robot description file
-  if (!node_.getParam("/adjutant/device/merlin/robot_description", robot_desc_string_)){
+  if (!node_.getParam("/robot_description", robot_desc_string_)){
     ROS_ERROR("CartesianSetpointController: No robot description found on parameter server (namespace: %s)",
               node_.getNamespace().c_str());
     return false;
@@ -107,7 +107,7 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
 
   // Load URDF for robot
   urdf::Model urdf;
-  if (!urdf.initParam("/adjutant/device/merlin/robot_description")){
+  if (!urdf.initParam("/robot_description")){
     ROS_ERROR("CartesianSetpointController: No URDF file found on parameter server (namespace: %s)",
               node_.getNamespace().c_str());
     return false;
@@ -225,11 +225,13 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
             << joint_acceleration_limits_[4] <<"  "
             << joint_acceleration_limits_[5]);
 
+  ROS_WARN_STREAM("CartesianSetpointController: Getting Joint Handles");
   // Get all joint handles
   for (unsigned i=0; i<chain_joint_names_.size(); i++){
     joint_handles_.push_back( robot->getJointHandle(chain_joint_names_[i]) );
   }
 
+  ROS_WARN_STREAM("CartesianSetpointController: Creating Solvers");
   // Create FK and IK Solvers
   std::vector<std::string> end_points;
   end_points.push_back(tip_name_);
@@ -237,14 +239,16 @@ bool CartesianSetpointController::init(hardware_interface::VelocityJointInterfac
   fk_tree_solver_.reset(new KDL::TreeFkSolverPos_recursive(kdl_tree_));
   ik_tree_solver_.reset(new KDL::TreeIkSolverPos_NR_JL(kdl_tree_, end_points, joint_positions_lower_limits_, joint_positions_upper_limits_, *fk_tree_solver_.get(), *ik_vel_tree_solver_.get(),ik_iterations_));
 
+  ROS_WARN_STREAM("CartesianSetpointController: Subscribing to Topics");
   // Subscribe to pose commands
-  cartesian_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("input/command/cartesian_pose", 1, &CartesianSetpointController::commandCB_cartesian, this);
-  cartesian_offset_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("input/command/cartesian_pose_offset", 1, &CartesianSetpointController::commandCB_cartesian_offset,this);
+  cartesian_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("cartesian_pose", 1, &CartesianSetpointController::commandCB_cartesian, this);
+  cartesian_offset_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("cartesian_pose_offset", 1, &CartesianSetpointController::commandCB_cartesian_offset,this);
   return true;
 }
 
 void CartesianSetpointController::starting(const ros::Time& time)
 {
+  ROS_WARN_STREAM("CartesianSetpointController: Starting up...");
   pose_desired_ = getPose();  
   last_time_ = time;
   loop_count_ = 0;
