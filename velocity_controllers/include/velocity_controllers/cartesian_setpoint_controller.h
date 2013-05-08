@@ -98,9 +98,9 @@ public:
   void update(const ros::Time& time, const ros::Duration& period);
   void stopping(const ros::Time& time);  
   void commandCB_cartesian(const geometry_msgs::PoseStamped::ConstPtr& msg);
-
+  void commandCB_cartesian_offset(const geometry_msgs::PoseStamped::ConstPtr& msg);
   // Input to the controller
-  KDL::Frame pose_desired_, pose_measured_;
+  KDL::Frame pose_initial_, pose_desired_, pose_desired_offset_, pose_measured_;
   KDL::Twist twist_ff_;
   // State output
   KDL::Twist twist_error_;
@@ -132,6 +132,7 @@ private:
   KDL::JntArray joint_positions_desired_;
   KDL::JntArray joint_positions_upper_limits_;
   KDL::JntArray joint_positions_lower_limits_;
+  KDL::JntArray joint_positions_initial;
   KDL::JntArray joint_velocities_;
   KDL::JntArray joint_accelerations_;
   KDL::JntArray joint_velocities_dt_;
@@ -170,6 +171,7 @@ private:
   // TF and Subscribers
   tf::TransformListener tf_;
   ros::Subscriber cartesian_command_subscriber_;
+  ros::Subscriber cartesian_offset_command_subscriber_;
 };
 
 }
