@@ -34,18 +34,18 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef VELOCITY_CONTROLLERS_CARTESIAN_SETPOINT_CONTROLLER_H
-#define VELOCITY_CONTROLLERS_CARTESIAN_SETPOINT_CONTROLLER_H
+#ifndef VELOCITY_CONTROLLERS_CARTESIAN_INTERP_CONTROLLER_H
+#define VELOCITY_CONTROLLERS_CARTESIAN_INTERP_CONTROLLER_H
 
 /**
-   @class velocity_controllers:CartesianSetpointController
+   @class velocity_controllers:CartesianInterpController
    @brief Cartesian Position Controller (velocity)
 
    This class calculates the IK of the robot using the cartesian pose command and commands joint velocity.  It can also command joint velocity by joint_position_commands
 
    @section ROS interface
 
-   @param type Must be "CartesianSetpointController"
+   @param type Must be "CartesianInterpController"
 
    Subscribes to:
    - @b cartesian_pose_command (geometry_msgs::PoseStamped) : The cartesian pose to command
@@ -87,11 +87,11 @@
 namespace velocity_controllers
 {
 
-class CartesianSetpointController: public controller_interface::Controller<hardware_interface::VelocityJointInterface>
+class CartesianInterpController: public controller_interface::Controller<hardware_interface::VelocityJointInterface>
 {
 public:
-  CartesianSetpointController();
-  ~CartesianSetpointController();
+  CartesianInterpController();
+  ~CartesianInterpController();
 
   bool init(hardware_interface::VelocityJointInterface *robot, ros::NodeHandle &n);
   void starting(const ros::Time& time);
@@ -100,7 +100,7 @@ public:
   void commandCB_cartesian(const geometry_msgs::PoseStamped::ConstPtr& msg);
   void commandCB_cartesian_offset(const geometry_msgs::PoseStamped::ConstPtr& msg);
   // Input to the controller
-  KDL::Frame pose_initial_, pose_desired_, pose_desired_offset_, pose_measured_;
+  KDL::Frame pose_initial_, pose_desired_, pose_desired_last_, pose_desired_offset_, pose_measured_;
   KDL::Twist twist_ff_;
   // State output
   KDL::Twist twist_error_;
@@ -141,6 +141,13 @@ private:
   KDL::JntArray joint_velocities_overshoot_;
   double max_vel_overshoot_ratio_;
   KDL::Jacobian jacobian_;
+
+  // Paths
+  KDL::Path_Line* current_path_;
+  bool on_path_;
+  double setpoint_limit_;
+  double setpoint_increment_;
+
   int ik_iterations_;
 
   // URDF and Joint Information
