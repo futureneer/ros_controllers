@@ -337,7 +337,7 @@ void CartesianInterpController::update(const ros::Time& time, const ros::Duratio
   double path_length = current_path_->PathLength();
   if(path_length > setpoint_limit_){
     // Calculate an incremental step towards the goal
-    KDL::Frame pose_step = current_path_->Pos(current_path_->LengthToS(setpoint_increment_));
+    KDL::Frame pose_step = current_path_->Pos(current_path_->LengthToS(path_length / setpoint_increment_));
     frames[tip_name_] = pose_step;
   }else{
     // Send the current desired pose to the controller
