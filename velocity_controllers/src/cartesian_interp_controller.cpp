@@ -197,10 +197,26 @@ bool CartesianInterpController::init(hardware_interface::VelocityJointInterface 
     }
   }
 
-  // Get Joint Limits
+  // Get Joint Velocity Limits
+  joint_velocity_limits_.resize(num_joints_);
   for (unsigned i=0; i<num_joints_; i++){
-    // Velocity Limit
-    joint_velocity_limits_.push_back(joint_urdf_[i]->limits->velocity);
+    // Try to get velocity limit from parameter server
+    if (!node_.getParam("velocity_limits/" + chain_joint_names_[i], joint_velocity_limits_[i]) ){
+      ROS_WARN_STREAM("CartesianInterpController: No velocity limit found on parameter server for joint "<<chain_joint_names_[i]<<", setting to URDF Value");
+      // Otherwise use URDF defined velocity limits
+      joint_velocity_limits_[i] = joint_urdf_[i]->limits->velocity;
+    }
+  }
+  ROS_WARN_STREAM("CartesianInterpController: Velocity limits = "
+            << joint_velocity_limits_[0] <<"  "
+            << joint_velocity_limits_[1] <<"  "
+            << joint_velocity_limits_[2] <<"  "
+            << joint_velocity_limits_[3] <<"  "
+            << joint_velocity_limits_[4] <<"  "
+            << joint_velocity_limits_[5]);
+
+  // Get Joint Position Limits
+  for (unsigned i=0; i<num_joints_; i++){
     // Upper Position Limit
     joint_upper_position_limits_.push_back(joint_urdf_[i]->limits->upper);
     joint_positions_upper_limits_(i) = joint_urdf_[i]->limits->upper;
