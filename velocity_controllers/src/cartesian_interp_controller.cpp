@@ -334,7 +334,6 @@ void CartesianInterpController::commandCB_cartesian_offset(const geometry_msgs::
 
   pose_desired_ = pose_desired_offset_;
   pose_desired_.p = pose_initial_.p + pose_desired_offset_.p;
-
 }
 
 void CartesianInterpController::update(const ros::Time& time, const ros::Duration& period)
