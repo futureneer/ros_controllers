@@ -83,7 +83,7 @@
 // TF
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
-
+#include <tf/transform_broadcaster.h>
 namespace velocity_controllers
 {
 
@@ -100,7 +100,7 @@ public:
   void commandCB_cartesian(const geometry_msgs::PoseStamped::ConstPtr& msg);
   void commandCB_cartesian_offset(const geometry_msgs::PoseStamped::ConstPtr& msg);
   // Input to the controller
-  KDL::Frame pose_initial_, pose_desired_, pose_desired_last_, pose_desired_offset_, pose_measured_;
+  KDL::Frame pose_start_,pose_initial_, pose_desired_, pose_desired_last_, pose_desired_offset_, pose_measured_;
   KDL::Twist twist_ff_;
   // State output
   KDL::Twist twist_error_;
@@ -170,6 +170,8 @@ private:
 
   // TF and Subscribers
   tf::TransformListener tf_;
+  tf::TransformBroadcaster tfb_;
+  tf::Transform initial_transform;
   ros::Subscriber cartesian_command_subscriber_;
   ros::Subscriber cartesian_offset_command_subscriber_;
 };

@@ -267,7 +267,15 @@ void CartesianInterpController::starting(const ros::Time& time)
   max_vel_overshoot_ratio_ = 0;
 
   pose_initial_ = getPose();
-  // reset pid controllers
+  /////  
+  pose_start_ = getPose();
+  initial_transform.setOrigin(tf::Vector3(pose_start_.p.x(),pose_start_.p.y(),pose_start_.p.z()));
+  double xx= 0.0, yy = 0.0, zz = 0.0, ww = 0.0;
+  pose_start_.M.GetQuaternion(xx,yy,zz,ww);
+  initial_transform.setRotation(tf::Quaternion(xx,yy,zz,ww));
+  //initial_transform.setRotation(tf::Quaternion(0.0,0.0,0.0,1.0));
+  //////
+  // reset pid controllers 
   for (unsigned int i=0; i<num_joints_; i++)
     pid_controller_[i].reset();
 
@@ -334,6 +342,9 @@ void CartesianInterpController::commandCB_cartesian_offset(const geometry_msgs::
 
   pose_desired_ = pose_desired_offset_;
   pose_desired_.p = pose_initial_.p + pose_desired_offset_.p;
+  /////
+  tfb_.sendTransform(tf::StampedTransform(initial_transform,ros::Time::now(),"/base_link","/starting_pose"));
+  /////
 }
 
 void CartesianInterpController::update(const ros::Time& time, const ros::Duration& period)
