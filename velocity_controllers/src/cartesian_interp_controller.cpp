@@ -255,7 +255,7 @@ bool CartesianInterpController::init(hardware_interface::VelocityJointInterface 
 
   // Subscribe to pose commands
   cartesian_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("input/command/cartesian_pose", 1, &CartesianInterpController::commandCB_cartesian, this);
-  cartesian_offset_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("input/command/cartesian_pose_offset", 1, &CartesianInterpController::commandCB_cartesian_offset,this);
+  cartesian_offset_command_subscriber_ = n.subscribe<geometry_msgs::PoseStamped>("input/command/cartesian_offset", 1, &CartesianInterpController::commandCB_cartesian_offset,this);
   return true;
 }
 
@@ -268,13 +268,14 @@ void CartesianInterpController::starting(const ros::Time& time)
 
   pose_initial_ = getPose();
   /////  
-  pose_start_ = getPose();
-  initial_transform.setOrigin(tf::Vector3(pose_start_.p.x(),pose_start_.p.y(),pose_start_.p.z()));
-  double xx= 0.0, yy = 0.0, zz = 0.0, ww = 0.0;
-  pose_start_.M.GetQuaternion(xx,yy,zz,ww);
-  initial_transform.setRotation(tf::Quaternion(xx,yy,zz,ww));
-  //initial_transform.setRotation(tf::Quaternion(0.0,0.0,0.0,1.0));
-  //////
+  //pose_start_ = getPose();
+  //initial_transform.setOrigin(tf::Vector3(pose_start_.p.x(),pose_start_.p.y(),pose_start_.p.z()));
+  //double xx= 0.0, yy = 0.0, zz = 0.0, ww = 0.0;
+  //pose_start_.M.GetQuaternion(xx,yy,zz,ww);
+  //initial_transform.setRotation(tf::Quaternion(xx,yy,zz,ww));
+  /////
+  //tfb_.sendTransform(tf::StampedTransform(initial_transform,ros::Time::now(),"/base_link","/starting_pose"));
+  /////
   // reset pid controllers 
   for (unsigned int i=0; i<num_joints_; i++)
     pid_controller_[i].reset();
@@ -327,6 +328,9 @@ void CartesianInterpController::commandCB_cartesian(const geometry_msgs::PoseSta
   // convert to reference frame of root link of the controller chain
   // tf_.transformPose(root_name_, pose_stamped, pose_stamped);
   tf::PoseTFToKDL(pose_stamped, pose_desired_);
+  /////
+  //tfb_.sendTransform(tf::StampedTransform(initial_transform,ros::Time::now(),"/base_link","/starting_pose"));
+  /////
 }
 
 void CartesianInterpController::commandCB_cartesian_offset(const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
@@ -343,7 +347,7 @@ void CartesianInterpController::commandCB_cartesian_offset(const geometry_msgs::
   pose_desired_ = pose_desired_offset_;
   pose_desired_.p = pose_initial_.p + pose_desired_offset_.p;
   /////
-  tfb_.sendTransform(tf::StampedTransform(initial_transform,ros::Time::now(),"/base_link","/starting_pose"));
+  //tfb_.sendTransform(tf::StampedTransform(initial_transform,ros::Time::now(),"/base_link","/starting_pose"));
   /////
 }
 
