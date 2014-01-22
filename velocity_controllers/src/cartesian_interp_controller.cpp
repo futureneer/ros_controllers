@@ -263,6 +263,7 @@ void CartesianInterpController::starting(const ros::Time& time)
 {
   pose_desired_ = getPose();  
   last_time_ = time;
+  last_update_ = time;
   loop_count_ = 0;
   max_vel_overshoot_ratio_ = 0;
 
@@ -325,6 +326,10 @@ void CartesianInterpController::commandCB_cartesian(const geometry_msgs::PoseSta
   tf::Stamped<tf::Pose> pose_stamped;
   poseStampedMsgToTF(*pose_msg, pose_stamped);
 
+  update_dt_ = ros::Time(0) - last_update_;
+  last_update_ = ros::Time(0);
+  std::cerr<<"update dt: "<<last_update_.toSec()<<std::endl;
+
   // convert to reference frame of root link of the controller chain
   // tf_.transformPose(root_name_, pose_stamped, pose_stamped);
   tf::PoseTFToKDL(pose_stamped, pose_desired_);
@@ -343,6 +348,10 @@ void CartesianInterpController::commandCB_cartesian_offset(const geometry_msgs::
   // convert to reference frame of root link of the controller chain
   // tf_.transformPose(root_name_, pose_stamped, pose_stamped);
   tf::PoseTFToKDL(pose_stamped, pose_desired_offset_);
+
+  update_dt_ = last_update_ - ros::Time(0);
+  last_update_ = ros::Time(0);
+  std::cerr<<"update dt: "<<last_update_.toSec()<<std::endl;
 
   pose_desired_ = pose_desired_offset_;
   pose_desired_.p = pose_initial_.p + pose_desired_offset_.p;

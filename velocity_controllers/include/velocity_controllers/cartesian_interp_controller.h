@@ -113,6 +113,8 @@ private:
   ros::NodeHandle node_;
   std::string controller_name_, root_name_, tip_name_;
   ros::Time last_time_;
+  ros::Time last_update_;
+  ros::Duration update_dt_;
 
   // Robot Structure
   hardware_interface::VelocityJointInterface *robot_;
