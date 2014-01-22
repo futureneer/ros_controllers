@@ -392,8 +392,14 @@ void CartesianInterpController::update(const ros::Time& time, const ros::Duratio
 
     // For each joint, calculate the required velocity to move to new position
     for(unsigned int i=0;i<num_joints_;i++){
+
+      double p,i_val,d,i_max,i_min;
+      pid_controller_[i].getGains(p, i_val, d, i_max, i_min);
+      // Calculate instantaneous velocity times the proportional gain
+      double instantaneous_velocity = (joint_positions_desired_(i)-joint_positions_(i) )/dt.toSec();
       // Perform PID Update of Velocity
-      joint_velocities_command_(i) = pid_controller_[i].updatePid(joint_positions_error(i), dt);
+      joint_velocities_command_(i) = pid_controller_[i].updatePid(joint_positions_error(i), dt) + instantaneous_velocity;
+      
       // Calculate Instantaneous Acceleration
       joint_accelerations_(i) = joint_velocities_command_(i) - joint_velocities_(i);
     }
