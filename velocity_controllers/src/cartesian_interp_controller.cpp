@@ -326,9 +326,9 @@ void CartesianInterpController::commandCB_cartesian(const geometry_msgs::PoseSta
   tf::Stamped<tf::Pose> pose_stamped;
   poseStampedMsgToTF(*pose_msg, pose_stamped);
 
-  update_dt_ = ros::Time(0) - last_update_;
-  last_update_ = ros::Time(0);
-  std::cerr<<"update dt: "<<last_update_.toSec()<<std::endl;
+  update_dt_ = ros::Time::now() - last_update_;
+  last_update_ = ros::Time::now();
+  //ROS_WARN_STREAM("update dt: "<<update_dt_.toSec());
 
   // convert to reference frame of root link of the controller chain
   // tf_.transformPose(root_name_, pose_stamped, pose_stamped);
@@ -349,9 +349,9 @@ void CartesianInterpController::commandCB_cartesian_offset(const geometry_msgs::
   // tf_.transformPose(root_name_, pose_stamped, pose_stamped);
   tf::PoseTFToKDL(pose_stamped, pose_desired_offset_);
 
-  update_dt_ = last_update_ - ros::Time(0);
-  last_update_ = ros::Time(0);
-  std::cerr<<"update dt: "<<last_update_.toSec()<<std::endl;
+  update_dt_ = ros::Time::now() - last_update_;
+  last_update_ = ros::Time::now();
+  //ROS_WARN_STREAM("update dt: "<<update_dt_.toSec());
 
   pose_desired_ = pose_desired_offset_;
   pose_desired_.p = pose_initial_.p + pose_desired_offset_.p;
@@ -369,20 +369,28 @@ void CartesianInterpController::update(const ros::Time& time, const ros::Duratio
   pose_measured_ = getPose();
   std::map<std::string,KDL::Frame> frames;
 
-  // Check to see if desired pose is too far away, and therefore interpolate
+  //// Check to see if desired pose is too far away, and therefore interpolate
   current_path_ = new KDL::Path_Line( pose_measured_, pose_desired_, 
                                       new KDL::RotationalInterpolation_SingleAxis(), 
                                       .01, true);
   double path_length = current_path_->PathLength();
+  std::vector<double> dynamic_acceleration_limits = joint_acceleration_limits_;
   if(path_length > setpoint_limit_){
-    // Calculate an incremental step towards the goal
-    KDL::Frame pose_step = current_path_->Pos(current_path_->LengthToS(path_length / setpoint_increment_));
-    ROS_INFO_STREAM("Interpolating " << path_length/setpoint_limit_);
-    frames[tip_name_] = pose_step;
+    for(unsigned int i=0;i<3;i++)
+      dynamic_acceleration_limits[i] = dynamic_acceleration_limits[i] / (path_length/setpoint_limit_);
+    for(unsigned int i=3;i<num_joints_;i++)
+      dynamic_acceleration_limits[i] = dynamic_acceleration_limits[i] / (2 * (path_length/setpoint_limit_));
   }else{
-    // Send the current desired pose to the controller
-    frames[tip_name_] = pose_desired_;
+    // Leave Acceleration Limits Alone
   }
+  //  // Calculate an incremental step towards the goal
+  //  KDL::Frame pose_step = current_path_->Pos(current_path_->LengthToS(path_length / setpoint_increment_));
+  //  ROS_INFO_STREAM("Interpolating " << path_length/setpoint_limit_);
+  //  frames[tip_name_] = pose_step;
+  //}else{
+  //  // Send the current desired pose to the controller
+  frames[tip_name_] = pose_desired_;
+  //}
 
   // Calculate desired joint positions from desired cartesian pos
   int e = ik_tree_solver_->CartToJnt(joint_positions_, frames, joint_positions_desired_);
@@ -407,7 +415,7 @@ void CartesianInterpController::update(const ros::Time& time, const ros::Duratio
       // Calculate instantaneous velocity times the proportional gain
       double instantaneous_velocity = (joint_positions_desired_(i)-joint_positions_(i) )/dt.toSec();
       // Perform PID Update of Velocity
-      joint_velocities_command_(i) = pid_controller_[i].updatePid(joint_positions_error(i), dt) + instantaneous_velocity;
+      joint_velocities_command_(i) = pid_controller_[i].updatePid(joint_positions_error(i), dt) + .05* instantaneous_velocity;
       
       // Calculate Instantaneous Acceleration
       joint_accelerations_(i) = joint_velocities_command_(i) - joint_velocities_(i);
@@ -417,9 +425,9 @@ void CartesianInterpController::update(const ros::Time& time, const ros::Duratio
     for(unsigned int i=0;i<num_joints_;i++){
       if(fabs(joint_accelerations_(i)) > joint_acceleration_limits_[i]){
         if(joint_accelerations_(i) > 0)
-          joint_velocities_command_(i) = joint_velocities_(i) + joint_acceleration_limits_[i];
+          joint_velocities_command_(i) = joint_velocities_(i) + dynamic_acceleration_limits[i];
         else
-          joint_velocities_command_(i) = joint_velocities_(i) - joint_acceleration_limits_[i];
+          joint_velocities_command_(i) = joint_velocities_(i) - dynamic_acceleration_limits[i];
       }
     }
     for(unsigned int i=0;i<num_joints_;i++){
